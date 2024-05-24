@@ -7,12 +7,13 @@ class Doctor {
   final String number;
   final String description;
   final int experience;
+  final String region;
   final String image;
   late final bool isFavorite;
 
   @override
   String toString() {
-    return 'Doctor(id: $id, name: $name, specialty: $specialty, number: $number, description: $description, experience: $experience, image: $image, isFavorite: $isFavorite)';
+    return 'Doctor(id: $id, name: $name, specialty: $specialty, number: $number,region: $region, description: $description, experience: $experience, image: $image, isFavorite: $isFavorite)';
   }
 
   Doctor({
@@ -20,6 +21,7 @@ class Doctor {
     required this.name,
     required this.specialty,
     required this.number,
+    required this.region,
     required this.description,
     required this.experience,
     required this.image,
@@ -34,6 +36,7 @@ class Doctor {
         name: doctorData['doctor_name'] ?? '',
         specialty: doctorData['specialty'] ?? '',
         number: doctorData['number'] ?? '',
+        region: doctorData['region'] ?? '',
         description: doctorData['description'] ?? '',
         experience: doctorData['experience'] ?? 0,
         image: doctorData['doctor_image'] ?? '',

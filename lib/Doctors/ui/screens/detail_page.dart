@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:tender_touch/Doctors/constants.dart';
 import 'package:tender_touch/Doctors/models/doctor.dart';
-import 'package:tender_touch/Doctors/apifetchbyid.dart'; // Ensure this imports the new function
+import 'package:tender_touch/Doctors/apifetchbyid.dart';
 
 class DetailPage extends StatefulWidget {
   final int doctorId;
@@ -17,12 +18,16 @@ class _DetailPageState extends State<DetailPage> {
   @override
   void initState() {
     super.initState();
-    // Fetch doctor details using the specific API call
     _futureDoctor = fetchDoctorDetailsById(widget.doctorId);
   }
 
-  bool toggleIsFavorated(bool isFavorated) {
-    return !isFavorated;
+  void _launchWhatsApp(String phoneNumber) async {
+    String url = "https://wa.me/$phoneNumber";
+    if (await canLaunch(url)) {
+      await launch(url);
+    } else {
+      throw 'Could not launch $url';
+    }
   }
 
   @override
@@ -72,7 +77,7 @@ class _DetailPageState extends State<DetailPage> {
                     GestureDetector(
                       onTap: () {
                         setState(() {
-                          doctor.isFavorite = toggleIsFavorated(doctor.isFavorite);
+                          doctor.isFavorite = !doctor.isFavorite;
                         });
                       },
                       child: Container(
@@ -123,8 +128,8 @@ class _DetailPageState extends State<DetailPage> {
                                 doctorFeature: doctor.specialty,
                               ),
                               DoctorFeature(
-                                title: 'Number',
-                                doctorFeature: doctor.number,
+                                title: 'Region',
+                                doctorFeature: doctor.region,
                               ),
                               DoctorFeature(
                                 title: 'Experience',
@@ -195,33 +200,52 @@ class _DetailPageState extends State<DetailPage> {
           );
         },
       ),
-      floatingActionButton: Container(
-        width: size.width * .9,
-        height: 50,
-        decoration: BoxDecoration(
-          color: Constants.primaryColor,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(
-              offset: const Offset(0, 1),
-              blurRadius: 5,
-              color: Constants.primaryColor.withOpacity(.3),
-            ),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            'Contact Now',
-            style: TextStyle(
+      floatingActionButton: FutureBuilder<Doctor?>(
+        future: _futureDoctor,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting ||
+              snapshot.hasError ||
+              !snapshot.hasData ||
+              snapshot.data == null) {
+            return Container(); // Return an empty container if there's an error or no data
+          }
+
+          Doctor doctor = snapshot.data!;
+          return GestureDetector(
+              onTap: () {
+            _launchWhatsApp(doctor.number);
+          },
+              child: Container(
+                width: size.width * .9,
+                height: 50,
+                decoration: BoxDecoration(
+                color: Constants.primaryColor,
+                borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+              BoxShadow(
+                    offset: const Offset(0, 1),
+                    blurRadius: 5,
+                    color: Constants.primaryColor.withOpacity(.3),
+                    ),
+                  ],
+                ),
+              child: Center(
+              child: Text(
+              'Contact Now',
+              style: TextStyle(
               color: Colors.white,
               fontSize: 20.0,
-            ),
-          ),
-        ),
+                  ),
+                ),
+              ),
+            )
+          );
+        },
       ),
     );
   }
 }
+
 
 class DoctorFeature extends StatelessWidget {
   final String doctorFeature;

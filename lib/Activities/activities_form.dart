@@ -1,9 +1,11 @@
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:tender_touch/Doctors/constants.dart';
 import 'dart:convert';
 
 import 'package:tender_touch/HomePage/homepage.dart';
-import 'ActivitiesSuggestions.dart';
+import '../Chatbot/ChatApp.dart';
 
 const kPrimaryColor = Color(0xFF107153);
 const double defaultPadding = 16.0;
@@ -18,14 +20,14 @@ class ActivitiesForm extends StatefulWidget {
 class _ActivitiesFormState extends State<ActivitiesForm> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
-  String _gender = 'Male'; // Default gender
+  String _gender = 'Male';
   String _age = '';
   String _diagnosis = '';
   String _medications = '';
   String _resources = '';
   String _interests = '';
   String _anything = '';
-  String _apiResponse = ''; // Store API response
+  String _apiResponse = '';
 
   Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
@@ -36,7 +38,7 @@ class _ActivitiesFormState extends State<ActivitiesForm> {
 
       try {
         var response = await http.post(
-          Uri.parse('http://localhost:7000/v1/activity/createform'),
+          Uri.parse('https://touchtender-web.onrender.com/v1/activity/createform'),
           headers: <String, String>{
             'Content-Type': 'application/json; charset=UTF-8',
           },
@@ -54,20 +56,17 @@ class _ActivitiesFormState extends State<ActivitiesForm> {
         print('HTTP Response Status Code: ${response.statusCode}');
 
         if (response.statusCode == 200) {
-          // Registration successful, store API response
           setState(() {
-            _apiResponse = jsonDecode(response.body)['generatedText'].toString();
+            _apiResponse = response.body;
           });
-          // Show success message (optional)
+          print('API Response: $_apiResponse');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Registration Successful')),
           );
         } else {
-          print('Error: ${jsonDecode(response.body)['message']}');
           _showErrorDialog(jsonDecode(response.body)['message']);
         }
       } catch (e) {
-        print('Error: Failed to connect to the server. $e');
         _showErrorDialog('Failed to connect to the server. Please try again later.');
       } finally {
         setState(() {
@@ -308,17 +307,15 @@ class _ActivitiesFormState extends State<ActivitiesForm> {
               SizedBox(height: defaultPadding),
               ElevatedButton(
                 onPressed: _isLoading ? null : _register,
-                child: _isLoading ? CircularProgressIndicator(color: Colors.white) : Text("Submit".toUpperCase()),
+                child: _isLoading
+                    ? CircularProgressIndicator(color: Colors.white)
+                    : Text("Submit".toUpperCase()),
               ),
               SizedBox(height: defaultPadding),
               if (_apiResponse.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(defaultPadding),
-                  child: Text(
-                    'API Response:\n$_apiResponse',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ),
+                _buildActivitiesCarousel(_apiResponse)
+              else
+                Text(''),
             ],
           ),
         ),
@@ -326,3 +323,137 @@ class _ActivitiesFormState extends State<ActivitiesForm> {
     );
   }
 }
+
+Widget _buildActivitiesCarousel(String apiResponse) {
+  final activities = parseApiResponse(apiResponse);
+  if (activities.isEmpty) {
+    return Text('No activities found');
+  }
+  return ActivitiesCarousel(activities: activities);
+}
+
+Map<String, List<String>> parseApiResponse(String response) {
+  Map<String, List<String>> activities = {};
+
+  try {
+    final jsonResponse = jsonDecode(response);
+    final generatedText = jsonResponse['generatedText'];
+
+    if (generatedText == null || generatedText.isEmpty) {
+      return activities;
+    }
+
+    generatedText.forEach((key, value) {
+      List<String> activityList = value.map<String>((activity) => activity.toString()).toList();
+      activities[key] = activityList;
+    });
+  } catch (e) {
+    print('Error parsing API response: $e');
+  }
+
+  return activities;
+}
+
+class ActivitiesCarousel extends StatefulWidget {
+  final Map<String, List<String>> activities;
+
+  ActivitiesCarousel({Key? key, required this.activities}) : super(key: key);
+
+  @override
+  _ActivitiesCarouselState createState() => _ActivitiesCarouselState();
+}
+
+class _ActivitiesCarouselState extends State<ActivitiesCarousel> {
+  int _currentIndex = 0;
+
+  void _showChoiceDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Great choice!'),
+          content: Text('If you want more information about this activity, chat with our chatbot.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (context) => HomePage(),
+                  ),
+                );
+              },
+              child: Text('Leave to Home Page'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => ChatBotPage(), // Replace with actual chatbot page
+                  ),
+                );
+              },
+              child: Text('Chat with Chatbot'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final activityDetails = widget.activities.values.expand((x) => x).toList();
+    return Column(
+      children: [
+        CarouselSlider(
+          items: activityDetails.map((activityDetail) {
+            return Builder(
+              builder: (BuildContext context) {
+                return Container(
+                  width: MediaQuery.of(context).size.width,
+                  margin: EdgeInsets.symmetric(horizontal: 5.0),
+                  decoration: BoxDecoration(
+                    color: Constants.primaryColor,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: EdgeInsets.all(defaultPadding),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        activityDetail,
+                        style: TextStyle(fontSize: 16.0),
+                      ),
+                      SizedBox(height: 10.0),
+                      ElevatedButton(
+                        onPressed: _showChoiceDialog,
+                        child: Text('Choose'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          }).toList(),
+          options: CarouselOptions(
+            height: MediaQuery.of(context).size.height * 0.6,
+            initialPage: 0,
+            enableInfiniteScroll: false,
+            reverse: false,
+            autoPlay: false,
+            enlargeCenterPage: true,
+            onPageChanged: (index, reason) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+          ),
+        ),
+        Text('${_currentIndex + 1}/${activityDetails.length}'),
+      ],
+    );
+  }
+}
+

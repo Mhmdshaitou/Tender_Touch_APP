@@ -1,11 +1,13 @@
-# senier
+# Tender Touch
 
 A new Flutter project.
 
 ## Getting Started
 
 This project is a starting point for a Flutter application.
-
+About
+application tailored to support parents of children with special needs. 
+Here's how our platform assists users and administrators
 A few resources to get you started if this is your first Flutter project:
 
 - [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)

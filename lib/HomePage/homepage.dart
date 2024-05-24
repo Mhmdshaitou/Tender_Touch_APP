@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:tender_touch/Activities/activities.dart';
 import 'package:tender_touch/Community/community_home.dart';
 import 'package:tender_touch/Doctors/ui/root_page.dart';
@@ -49,8 +52,9 @@ class _MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
   late PageController _pageController;
   Timer? _timer;
-  List<String> storyImages = ['images/slider/slider2.jpg', 'images/slider/slider1.jpg', 'images/slider/slider3.jpg', 'images/slider/slider2.jpg', 'images/slider/slider1.jpg', 'images/slider/slider3.jpg'];
-  List<String> storyLabels = ['Beach Vibes', 'Dancing!', 'Dinner','Beach Vibes', 'Dancing!', 'Dinner'];
+  List<String> storyImages = ['images/slider/slider2.jpg', 'images/slider/slider1.jpg', 'images/slider/slider3.jpg', 'images/slider/slider2.jpg', 'images/slider/slider3.jpg'];
+  List<String> storyLabels = ['Garden Vibes', 'Relaxing!', 'Dinner', 'Lets play!', 'Education'];
+  final storage = FlutterSecureStorage();
 
   @override
   void initState() {
@@ -72,22 +76,42 @@ class _MyHomePageState extends State<MyHomePage> {
     super.dispose();
   }
 
+  Future<String> fetchUserName() async {
+    String? userId = await storage.read(key: 'user_id');
+    if (userId == null) {
+      throw Exception('User ID not found, please login again.');
+    }
+    final response = await http.get(Uri.parse('https://touchtender-web.onrender.com/v1/auth/user/$userId'));
+
+    if (response.statusCode == 200) {
+      var data = jsonDecode(response.body);
+      var fullName = data['user']['fullName'];
+      var firstName = fullName.split(' ')[0];
+      return firstName;
+    } else {
+      throw Exception('Failed to load user name with status code: ${response.statusCode}');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.purple[20],
-        title: Text('Hii Mohammad'),
+        title: FutureBuilder<String>(
+          future: fetchUserName(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.done) {
+              if (snapshot.hasError) {
+                return Text('Error: ${snapshot.error}');
+              }
+              return Text('Hii ${snapshot.data}');
+            } else {
+              return CircularProgressIndicator();
+            }
+          },
+        ),
         actions: <Widget>[
-          IconButton(
-            icon: Icon(Icons.notifications),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => NotificationPage()),
-              );
-            },
-          ),
           IconButton(
             icon: Icon(Icons.person),
             onPressed: () {
@@ -209,21 +233,6 @@ class MenuGrid extends StatelessWidget {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => RootPage()),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: MenuButton(
-                title: 'Doctor',
-                iconPath: 'images/menubuttons/doctors.png',
-                color: buttonColor2),
-          ),
-        ),
-        InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
               MaterialPageRoute(builder: (context) => CommunityPage()),
             );
           },
@@ -247,6 +256,21 @@ class MenuGrid extends StatelessWidget {
                 title: 'Places',
                 iconPath: 'images/menubuttons/places.png',
                 color: buttonColor4),
+          ),
+        ),
+        InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => RootPage()),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: MenuButton(
+                title: 'Doctor',
+                iconPath: 'images/menubuttons/doctors.png',
+                color: buttonColor2),
           ),
         ),
         InkWell(
@@ -299,8 +323,8 @@ class MenuButton extends StatelessWidget {
               padding: const EdgeInsets.all(8.0),
               child: Image.asset(
                 iconPath,
-                height: 130, // Adjust the height of the icon as needed
-                width: 130, // Adjust the width of the icon as needed
+                height: 130,
+                width: 130,
               ),
             ),
           ),

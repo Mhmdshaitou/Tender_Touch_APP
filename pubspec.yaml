@@ -11,16 +11,20 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_svg: ^2.0.10+1
-  cupertino_icons: ^1.0.6
-  animated_bottom_navigation_bar: ^0.3.3
-  page_transition: ^2.0.5
-  http: ^1.0.0
-  url_launcher: ^6.0.12
-  flutter_custom_clippers: ^2.1.0
-  file_picker: ^4.0.0
-  carousel_slider: ^4.2.1
-  image_picker: ^0.8.6+1
+  flutter_svg: ^2.0.10+1 #to use svg pictures
+  cupertino_icons: ^1.0.6 #app icon
+  page_transition: ^2.0.5 #used for smooth page transition
+  http: ^1.0.0 #launch links
+  url_launcher: ^6.0.12 #launch url
+  flutter_custom_clippers: ^2.1.0 #used for special design
+  file_picker: ^4.0.0 #file picker for images
+  carousel_slider: ^4.2.1 #carousel package
+  image_picker: ^0.8.6+1 #pick image for phones
+  flutter_secure_storage: ^5.0.2 #store the token after login
+  jwt_decode: ^0.3.0 #token and userid transfer
+  permission_handler: ^10.0.0 #for permission
+  open_app_settings: ^2.0.1 #open settings for permission
+  shared_preferences: ^2.0.17 #to update user's info
 
 
 dev_dependencies:

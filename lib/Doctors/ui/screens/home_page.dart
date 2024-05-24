@@ -17,14 +17,30 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
+
 class _HomePageState extends State<HomePage> {
   late Future<List<Doctor>> _futureDoctors;
   int selectedIndex = 0;
-
+  String? selectedRegion;
+  List<String> regions = [
+    "All", "Beirut", "Tyre", "Bekaa", "Nabatieh", "Jounieh", "Jbeil", "Baabda", "Aley", "Matn", "Chouf", "Tripoli", "Akkar",
+    "Miniyeh-Danniyeh", "Zgharta", "Bcharre", "Koura", "Batroun", "Zahle", "Baalbek",
+    "Hermel", "Rashaya", "El Bekaa", "Bint Jbeil", "Hasbaya", "Marjeyoun", "Saida",
+    "Jezzine"
+  ];
   @override
   void initState() {
     super.initState();
     _futureDoctors = fetchDoctorsFromApi(); // Fetching doctors from the API
+  }
+
+  Future<List<Doctor>> _fetchAndFilterDoctors() async {
+    List<Doctor> doctors = await fetchDoctorsFromApi();
+    if (selectedRegion == null || selectedRegion == "All") {
+      return doctors;
+    } else {
+      return doctors.where((doctor) => doctor.region == selectedRegion).toList();
+    }
   }
 
   bool toggleIsFavorated(bool isFavorated) {
@@ -45,35 +61,64 @@ class _HomePageState extends State<HomePage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                    ),
-                    width: size.width * .9,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.search,
-                          color: Colors.black54.withOpacity(.6),
-                        ),
-                        const Expanded(
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.search,
+                            color: Colors.black54.withOpacity(.6),
+                          ),
+                          const Expanded(
                             child: TextField(
-                              showCursor: false,
+                              showCursor: true,
                               decoration: InputDecoration(
                                 hintText: 'Search Doctors',
                                 border: InputBorder.none,
                                 focusedBorder: InputBorder.none,
                               ),
-                            )),
-                      ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      decoration: BoxDecoration(
+                        color: Constants.primaryColor.withOpacity(.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
                     ),
+                  ),
+                  const SizedBox(width: 16.0),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
                     decoration: BoxDecoration(
-                      color: Constants.primaryColor.withOpacity(.1),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
+
                     ),
-                  )
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: selectedRegion,
+                        icon: const Icon(Icons.filter_list, color: Colors.deepPurple),
+                        elevation: 0,
+                        style: const TextStyle(color: Colors.deepPurple),
+                        hint: const Text("Region"), // Added hint text
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            selectedRegion = newValue;
+                            _futureDoctors = _fetchAndFilterDoctors();
+                          });
+                        },
+                        items: regions.map<DropdownMenuItem<String>>((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -105,7 +150,7 @@ class _HomePageState extends State<HomePage> {
                 } else if (snapshot.hasError) {
                   return Center(child: Text('Error: ${snapshot.error}'));
                 } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return Center(child: Text('No doctors found'));
+                  return Center(child: Text('No doctors found in this region'));
                 }
 
                 List<Doctor> _doctorList = snapshot.data!;

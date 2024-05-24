@@ -8,6 +8,10 @@
         <true/>
     </dict>
 
+    <!-- Info.plist -->
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Need access to the photo library for uploading images</string>
+
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -51,5 +55,6 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
 </dict>
 </plist>

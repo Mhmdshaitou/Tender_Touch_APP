@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:tender_touch/Places/places_form.dart';
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
-
-
-import 'package:tender_touch/Places/places.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:jwt_decode/jwt_decode.dart';
 
 class PlacesMainPage extends StatefulWidget {
   @override
@@ -17,6 +17,8 @@ class _PlacesMainPageState extends State<PlacesMainPage> {
   String searchQuery = '';
   String classification = '';
 
+  final storage = FlutterSecureStorage();
+
   @override
   void initState() {
     super.initState();
@@ -24,16 +26,42 @@ class _PlacesMainPageState extends State<PlacesMainPage> {
   }
 
   Future<void> fetchPlaces() async {
-    final response = await http.get(Uri.parse('http://localhost:7000/v1/place/approved'));
+    final response = await http.get(Uri.parse('https://touchtender-web.onrender.com/v1/place/approved'));
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
+      List<Place> loadedPlaces = (data['places'] as List).map<Place>((json) => Place.fromJson(json)).toList();
+
+      // Fetch average ratings for each place
+      for (var place in loadedPlaces) {
+        place.rating = await fetchAverageRating(place.placeid);
+      }
+
       setState(() {
-        places = (data['places'] as List).map<Place>((json) => Place.fromJson(json)).toList();
+        places = loadedPlaces;
         filteredPlaces = places;
       });
     } else {
       throw Exception('Failed to load places');
     }
+  }
+
+  Future<double?> fetchAverageRating(int placeID) async {
+    final response = await http.get(Uri.parse('https://touchtender-web.onrender.com/v1/place/ratings/average/$placeID'));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['averageRating']?.toDouble();
+    } else {
+      throw Exception('Failed to load average rating');
+    }
+  }
+
+  Future<int> getUserIdFromToken() async {
+    String? token = await storage.read(key: 'auth_token');
+    if (token != null) {
+      Map<String, dynamic> payload = Jwt.parseJwt(token);
+      return payload['userId']; // Adjust the key based on your JWT structure
+    }
+    throw Exception('Token not found');
   }
 
   void filterPlaces(String query, String classification) {
@@ -58,8 +86,8 @@ class _PlacesMainPageState extends State<PlacesMainPage> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      backgroundColor: Colors.green[50], // Apply a slight greenish tint to the page
-      body: SingleChildScrollView( // Enable scrolling for the entire page
+      backgroundColor: Colors.green[50],
+      body: SingleChildScrollView(
         child: Column(
           children: [
             Padding(
@@ -88,7 +116,7 @@ class _PlacesMainPageState extends State<PlacesMainPage> {
             SizedBox(
               height: 170,
               child: Image.asset(
-                'images/places/addplace.png', // Replace with your GIF path
+                'images/places/addplace.png',
                 fit: BoxFit.cover,
               ),
             ),
@@ -113,7 +141,7 @@ class _PlacesMainPageState extends State<PlacesMainPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => PlacesPage(),
+                          builder: (context) => PlacesForm(),
                         ),
                       );
                     },
@@ -123,7 +151,7 @@ class _PlacesMainPageState extends State<PlacesMainPage> {
                 ],
               ),
             ),
-            Column( // Inner column to keep the list inside SingleChildScrollView
+            Column(
               children: List.generate(
                 filteredPlaces.length,
                     (index) {
@@ -149,13 +177,52 @@ class _PlacesMainPageState extends State<PlacesMainPage> {
       builder: (context) => PlaceDetailsDialog(
         place: place,
         onRate: (rating) {
-          // Call API to rate the place
+          submitRating(place.placeid, rating);
         },
         onLocation: () {
-          // Navigate to the place's location URL
+          _launchURL(place.location);
         },
       ),
     );
+  }
+
+  Future<void> submitRating(int placeID, int rating) async {
+    try {
+      int userID = await getUserIdFromToken();
+      final response = await http.post(
+        Uri.parse('https://touchtender-web.onrender.com/v1/place/ratings/$placeID'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'rating': rating,
+          'userId': userID,
+        }),
+      );
+
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // Update the rating locally
+        setState(() async {
+          places.firstWhere((place) => place.placeid == placeID).rating = await fetchAverageRating(placeID);
+          filteredPlaces = places;
+        });
+      } else {
+        throw Exception('Failed to submit rating');
+      }
+    } catch (e) {
+      print('Error submitting rating: $e');
+    }
+  }
+
+  Future<void> _launchURL(String url) async {
+    if (await canLaunch(url)) {
+      await launch(url);
+    } else {
+      throw 'Could not launch $url';
+    }
   }
 }
 
@@ -167,7 +234,7 @@ class PlaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var imageUrl = place.photos.isNotEmpty ? 'http://localhost:7000' + place.photos.first.photoUrl : 'https://via.placeholder.com/300x100';
+    var imageUrl = place.photos.isNotEmpty ? 'https://touchtender-web.onrender.com/' + place.photos.first.photoUrl : 'https://via.placeholder.com/300x100';
     print('Image URL: $imageUrl');
     return GestureDetector(
       onTap: onTap,
@@ -180,11 +247,10 @@ class PlaceCard extends StatelessWidget {
                 image: NetworkImage(imageUrl),
                 height: 150,
                 fit: BoxFit.cover,
-                  errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
-                    print('Failed to load image: $exception, Stack Trace: $stackTrace');
-                    return Text('Failed to load image: $exception');
-                  }
-
+                errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
+                  print('Failed to load image: $exception, Stack Trace: $stackTrace');
+                  return Text('Failed to load image: $exception');
+                },
               ),
               Padding(
                 padding: const EdgeInsets.all(8.0),
@@ -199,18 +265,18 @@ class PlaceCard extends StatelessWidget {
                       ),
                     ),
                     Text(place.classification),
+                    Text(place.description ?? ''),
                     Row(
                       children: List.generate(
                         5,
                             (index) => Icon(
-                          index < (place.rating ?? 0)
+                          index < (place.rating?.round() ?? 0)
                               ? Icons.star
                               : Icons.star_border,
                           color: Colors.amber,
                         ),
                       ),
                     ),
-                    Text(place.description ?? ''),
                   ],
                 ),
               ),
@@ -221,8 +287,6 @@ class PlaceCard extends StatelessWidget {
     );
   }
 }
-
-// FilterDialog, PlaceDetailsDialog, and Place class remain unchanged
 
 class FilterDialog extends StatefulWidget {
   final Function(String) onFilter;
@@ -247,7 +311,7 @@ class _FilterDialogState extends State<FilterDialog> {
             selectedClassification = value ?? 'All';
           });
         },
-        items: ['All', 'Restaurant', 'Hotel', 'Attraction']
+        items: ['All', 'Restaurant', 'Cinema', 'Playground', 'School', 'Garden']
             .map<DropdownMenuItem<String>>((String value) {
           return DropdownMenuItem<String>(
             value: value,
@@ -286,20 +350,18 @@ class PlaceDetailsDialog extends StatefulWidget {
 class _PlaceDetailsDialogState extends State<PlaceDetailsDialog> {
   int rating = 0;
 
-  Future<void> _launchURL(String url) async {
-    if (await canLaunch(url)) {
-      await launch(url);
-    } else {
-      throw 'Could not launch $url';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    var imageUrl = widget.place.photos.isNotEmpty ? 'http://localhost:7000' + widget.place.photos.first.photoUrl : 'https://via.placeholder.com/300x100';
+    var imageUrl = widget.place.photos.isNotEmpty ? 'https://touchtender-web.onrender.com/' + widget.place.photos.first.photoUrl : 'https://via.placeholder.com/300x100';
     print('Image URL: $imageUrl');
     return AlertDialog(
-      title: Text(widget.place.name),
+      title: Text(
+        widget.place.name,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 25.0,
+        ),
+      ),
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -313,7 +375,16 @@ class _PlaceDetailsDialogState extends State<PlaceDetailsDialog> {
               return Text('Failed to load image');
             },
           ),
-          Text(widget.place.classification),
+          Text(
+            widget.place.classification,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text((widget.place.region ?? '') + ' - ' + (widget.place.city ?? '')),
+          Text(widget.place.description ?? ''),
+          Text('Rate this place: '),
+
           Row(
             children: List.generate(
               5,
@@ -326,17 +397,19 @@ class _PlaceDetailsDialogState extends State<PlaceDetailsDialog> {
               ),
             ),
           ),
-          Text(widget.place.description ?? ''),
         ],
       ),
       actions: [
         TextButton(
-          onPressed: () => widget.onRate(rating),
+          onPressed: () {
+            widget.onRate(rating);
+            Navigator.pop(context);
+          },
           child: Text('Rate'),
         ),
         TextButton(
-          onPressed: () => _launchURL(widget.place.location),
-          child: Text('Location'),
+          onPressed: widget.onLocation,
+          child: Text('Visit now!'),
         ),
       ],
     );
@@ -353,7 +426,7 @@ class Place {
   final String location;
   final String status;
   final DateTime createdAt;
-  final double? rating;
+  double? rating;
   final String? description;
   final List<Photo> photos;
 
@@ -389,6 +462,7 @@ class Place {
     );
   }
 }
+
 class Photo {
   final int photoid;
   final int placeid;

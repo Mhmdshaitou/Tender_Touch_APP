@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:jwt_decode/jwt_decode.dart';
 import 'package:page_transition/page_transition.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../../Doctors/ui/root_page.dart';
 import '../../../components/already_have_an_account_acheck.dart';
 import '../../Signup/signup_screen.dart';
@@ -24,6 +26,9 @@ class _LoginFormState extends State<LoginForm> {
   String _email = '';
   String _password = '';
   String? _token;
+  final storage = FlutterSecureStorage();
+
+
 
   void _login() async {
     if (_formKey.currentState!.validate()) {
@@ -34,7 +39,7 @@ class _LoginFormState extends State<LoginForm> {
 
       try {
         var response = await http.post(
-          Uri.parse('http://localhost:7000/v1/auth/login'),
+          Uri.parse('https://touchtender-web.onrender.com/v1/auth/login'),
           headers: <String, String>{
             'Content-Type': 'application/json; charset=UTF-8',
           },
@@ -48,13 +53,20 @@ class _LoginFormState extends State<LoginForm> {
           var responseBody = jsonDecode(response.body);
           _token = responseBody['token'];
 
-          // Print a success message with the token
-          print('Login successful, token: $_token');
+          // Decode the token to get the user ID
+          Map<String, dynamic> payload = Jwt.parseJwt(_token!);
+          String userId = payload['userId'].toString(); // Assuming the user ID is stored in the 'userId' claim
+
+          // Store the user ID and token securely
+          await storage.write(key: 'user_id', value: userId);
+          await storage.write(key: 'auth_token', value: _token);
+
+          print('Login successful, token: $_token, userId: $userId');
 
           Navigator.pushReplacement(
             context,
             PageTransition(
-              child: HomePage(), // Pass token to HomePage or other methods
+              child: HomePage(), // Navigate to HomePage
               type: PageTransitionType.bottomToTop,
             ),
           );
@@ -90,14 +102,17 @@ class _LoginFormState extends State<LoginForm> {
   }
 
   Future<void> fetchUserData() async {
-    if (_token == null) {
-      _showErrorDialog('No token found, please login again.');
+    String? userId = await storage.read(key: 'user_id');
+    String? token = await storage.read(key: 'auth_token');
+
+    if (userId == null || token == null) {
+      _showErrorDialog('No user ID or token found, please login again.');
       return;
     }
 
     try {
       var response = await http.get(
-        Uri.parse('http://localhost:7000/v1/user/profile'),
+        Uri.parse('https://touchtender-web.onrender.com/v1/user/profile'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
           'Authorization': 'Bearer $_token', // Add the token here
@@ -113,6 +128,7 @@ class _LoginFormState extends State<LoginForm> {
       print('Error occurred: $e');
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
