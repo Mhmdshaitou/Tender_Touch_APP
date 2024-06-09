@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:page_transition/page_transition.dart';
 import 'package:tender_touch/HomePage/homepage.dart';
+import '../HomePage/forcelogin.dart';
 
 void main() => runApp(ChatBotPage());
 
@@ -16,6 +19,8 @@ class ChatBotPage extends StatelessWidget {
 }
 
 class ChatScreen extends StatefulWidget {
+  static const String routeName = '/chatbot';
+
   @override
   _ChatScreenState createState() => _ChatScreenState();
 }
@@ -24,13 +29,33 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   List<Message> messages = [];
   bool _isLoading = false;
+  final storage = FlutterSecureStorage();
 
   List<String> suggestions = [
     "Hello!",
     "How can I improve my child's communication skills?",
-    "How can I take care of myself while caring for my child?",
+    "How can I take care of myself while caring for my child?",
     "What activities can help with social skills?"
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    String? token = await storage.read(key: 'auth_token');
+    if (token == null) {
+      Navigator.pushReplacement(
+        context,
+        PageTransition(
+          child: ForceloginPage(destinationRoute: ChatScreen.routeName),
+          type: PageTransitionType.fade,
+        ),
+      );
+    }
+  }
 
   void _sendMessage({String? text}) async {
     text = text ?? _controller.text.trim();
@@ -44,7 +69,7 @@ class _ChatScreenState extends State<ChatScreen> {
       try {
         // Send POST request to the server
         final response = await http.post(
-          Uri.parse('https://touchtender-web.onrender.com/v1/community/chat'),
+          Uri.parse('http://localhost:7000/v1/community/chat'),
           headers: {'Content-Type': 'application/json'},
           body: json.encode({'userInput': text}),
         );

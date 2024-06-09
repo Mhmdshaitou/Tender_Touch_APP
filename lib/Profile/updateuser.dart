@@ -61,7 +61,7 @@ class _UserProfileUpdatePageState extends State<UserProfileUpdatePage> {
     }
 
     _userId = userId;
-    String url = 'https://touchtender-web.onrender.com/v1/auth/user/$userId';
+    String url = 'http://localhost:7000/v1/auth/user/$userId';
     try {
       http.Response response = await http.get(
         Uri.parse(url),
@@ -95,7 +95,7 @@ class _UserProfileUpdatePageState extends State<UserProfileUpdatePage> {
 
       try {
         http.Response response = await http.put(
-          Uri.parse('https://touchtender-web.onrender.com/v1/auth/user/$_userId'),
+          Uri.parse('http://localhost:7000/v1/auth/user/$_userId'),
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer $token'

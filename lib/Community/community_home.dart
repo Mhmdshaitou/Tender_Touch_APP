@@ -2,10 +2,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:page_transition/page_transition.dart';
 import 'package:tender_touch/Community/addthread.dart';
 import 'package:tender_touch/Profile/profile_page.dart';
+import '../HomePage/forcelogin.dart';
 
 class CommunityPage extends StatefulWidget {
+  static const String routeName = '/community';
+
   @override
   _CommunityPageState createState() => _CommunityPageState();
 }
@@ -20,12 +24,27 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    fetchComments();
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    String? token = await storage.read(key: 'auth_token');
+    if (token == null) {
+      Navigator.pushReplacement(
+        context,
+        PageTransition(
+          child: ForceloginPage(destinationRoute: CommunityPage.routeName),
+          type: PageTransitionType.fade,
+        ),
+      );
+    } else {
+      fetchComments();
+    }
   }
 
   Future<void> fetchComments() async {
     final response = await http.get(
-      Uri.parse('https://touchtender-web.onrender.com/v1/community/comments'),
+      Uri.parse('http://localhost:7000/v1/community/comments'),
     );
 
     if (response.statusCode == 200) {
@@ -42,7 +61,7 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
   Future<void> _fetchTotalLikes(List<dynamic> comments) async {
     for (var comment in comments) {
       final response = await http.get(
-        Uri.parse('https://touchtender-web.onrender.com/v1/community/totallikes/${comment['CommentID']}'),
+        Uri.parse('http://localhost:7000/v1/community/totallikes/${comment['CommentID']}'),
       );
 
       if (response.statusCode == 200) {
@@ -132,7 +151,6 @@ class CommentsListWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Sort comments in descending order based on CreatedAt
     final sortedComments = List<dynamic>.from(comments)
       ..sort((a, b) => b['CreatedAt'].compareTo(a['CreatedAt']));
 
@@ -194,7 +212,7 @@ class _CommentCardState extends State<CommentCard> {
   Future<void> _fetchReplies() async {
     try {
       final response = await http.get(
-        Uri.parse('https://touchtender-web.onrender.com/v1/community/comment/${widget.commentId}/replies'),
+        Uri.parse('http://localhost:7000/v1/community/comment/${widget.commentId}/replies'),
       );
 
       if (response.statusCode == 200) {
@@ -220,7 +238,7 @@ class _CommentCardState extends State<CommentCard> {
     String? userId = await storage.read(key: 'user_id');
     if (userId != null) {
       final response = await http.get(
-        Uri.parse('https://touchtender-web.onrender.com/v1/community/isliked/${widget.commentId}/$userId'),
+        Uri.parse('http://localhost:7000/v1/community/isliked/${widget.commentId}/$userId'),
       );
 
       if (response.statusCode == 200) {
@@ -239,27 +257,41 @@ class _CommentCardState extends State<CommentCard> {
       return;
     }
 
+    setState(() {
+      isLiked = !isLiked;
+      likeCount += isLiked ? 1 : -1;
+    });
+
     String url = isLiked
-        ? 'https://touchtender-web.onrender.com/v1/community/unlike/${widget.commentId}'
-        : 'https://touchtender-web.onrender.com/v1/community/addlike/${widget.commentId}';
+        ? 'http://localhost:7000/v1/community/addlike/${widget.commentId}'
+        : 'http://localhost:7000/v1/community/unlike/${widget.commentId}';
 
     try {
-      final response = await http.post(
+      final response = isLiked
+          ? await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'userID': userId}),
+      )
+          : await http.delete(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'userID': userId}),
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode != 200 && response.statusCode != 201) {
         setState(() {
           isLiked = !isLiked;
           likeCount += isLiked ? 1 : -1;
         });
-      } else {
         print('Failed to toggle like: ${response.statusCode}');
         print('Error: ${response.body}');
       }
     } catch (e) {
+      setState(() {
+        isLiked = !isLiked;
+        likeCount += isLiked ? 1 : -1;
+      });
       print('Error sending request: $e');
     }
   }
@@ -273,7 +305,6 @@ class _CommentCardState extends State<CommentCard> {
       ),
     );
 
-    // Refresh replies once the dialog is closed
     _fetchReplies();
   }
 
@@ -362,7 +393,7 @@ class _CommentCardState extends State<CommentCard> {
   );
 
   Widget _buildReplies() {
-    bool shouldShowViewMore = _replies.length > 2 && !_showAllReplies; // Control the "View More" button
+    bool shouldShowViewMore = _replies.length > 2 && !_showAllReplies;
     List<Widget> visibleReplies;
 
     if (_showAllReplies) {
@@ -381,7 +412,7 @@ class _CommentCardState extends State<CommentCard> {
             style: TextStyle(
               fontSize: 16.0,
               fontWeight: FontWeight.bold,
-              color: Colors.deepPurple, // Customize color to suit app theme
+              color: Colors.deepPurple,
             ),
           ),
         ),
@@ -390,7 +421,7 @@ class _CommentCardState extends State<CommentCard> {
           TextButton(
             onPressed: () {
               setState(() {
-                _showAllReplies = true;  // Show all replies
+                _showAllReplies = true;
               });
             },
             child: Text('View More'),
@@ -407,13 +438,12 @@ class _CommentCardState extends State<CommentCard> {
         children: [
           Text(
             reply['Content'],
-            style: TextStyle(fontSize: 14.0, color: Colors.black54), // Customize font as needed
+            style: TextStyle(fontSize: 14.0, color: Colors.black54),
           ),
           Text(
             'Posted on ${DateTime.parse(reply['CreatedAt']).toLocal()}',
             style: TextStyle(fontSize: 12.0, color: Colors.grey),
           ),
-          // Add more details or interaction buttons here if needed
         ],
       ),
     );
@@ -431,6 +461,7 @@ class ReplyDialog extends StatefulWidget {
 class _ReplyDialogState extends State<ReplyDialog> {
   final _replyController = TextEditingController();
   final storage = FlutterSecureStorage();
+
   Future<void> _addReply() async {
     String? userIdString = await storage.read(key: 'user_id');
     if (userIdString == null) {
@@ -456,9 +487,9 @@ class _ReplyDialogState extends State<ReplyDialog> {
     };
 
     try {
-      Navigator.of(context).pop();  // Close the dialog optimistically
+      Navigator.of(context).pop();
       final response = await http.post(
-        Uri.parse('https://touchtender-web.onrender.com/v1/community/addreply/${widget.commentId}'),
+        Uri.parse('http://localhost:7000/v1/community/addreply/${widget.commentId}'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(requestBody),
       );
@@ -584,7 +615,7 @@ class _ForumsTabState extends State<ForumsTab> {
                 content: comment['Content'],
                 createdAt: comment['CreatedAt'],
                 category: comment['category'],
-                totalLikes: 0, // This will need to be updated with actual like data if needed
+                totalLikes: 0,
               );
             },
           ),

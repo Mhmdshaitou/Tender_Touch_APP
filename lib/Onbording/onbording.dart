@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:tender_touch/HomePage/homepage.dart';
 import 'package:tender_touch/Onbording/content_model.dart';
 import 'package:tender_touch/login/screens/login/login_screen.dart'; // Updated import for LoginScreen
 
@@ -93,7 +94,7 @@ class _OnboardingState extends State<Onboarding> {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => LoginScreen(), // Updated to navigate to LoginScreen
+                      builder: (_) => HomePage(), // Updated to navigate to LoginScreen
                     ),
                   );
                 } else {

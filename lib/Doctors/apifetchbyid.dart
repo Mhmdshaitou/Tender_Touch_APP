@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:tender_touch/Doctors/models/doctor.dart';
 
 // Base API URL
-const String _baseUrl = 'https://touchtender-web.onrender.com/v1';
+const String _baseUrl = 'http://localhost:7000/v1';
 
 // Custom Exception for API errors
 class ApiException implements Exception {

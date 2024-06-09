@@ -14,7 +14,7 @@ dependencies:
   flutter_svg: ^2.0.10+1 #to use svg pictures
   cupertino_icons: ^1.0.6 #app icon
   page_transition: ^2.0.5 #used for smooth page transition
-  http: ^1.0.0 #launch links
+  http: ^1.2.1 #launch links
   url_launcher: ^6.0.12 #launch url
   flutter_custom_clippers: ^2.1.0 #used for special design
   file_picker: ^4.0.0 #file picker for images
@@ -25,7 +25,7 @@ dependencies:
   permission_handler: ^10.0.0 #for permission
   open_app_settings: ^2.0.1 #open settings for permission
   shared_preferences: ^2.0.17 #to update user's info
-
+  mime: ^1.0.4 #for image upload to the database
 
 dev_dependencies:
   flutter_test:
@@ -54,6 +54,9 @@ flutter:
     - images/onboarding/
     - images/emergency/
     - images/places/
+    - images/home_images/male_avatar.jpg
+    - images/home_images/female_avatar.jpg
+
 
 
 

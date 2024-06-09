@@ -3,13 +3,17 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:page_transition/page_transition.dart';
+import 'package:tender_touch/HomePage/homepage.dart';
 import 'package:tender_touch/Profile/setting.dart';
 import 'package:tender_touch/login/Screens/Login/login_screen.dart';
-
+import 'dart:async';
 import '../Community/addthread.dart';
+import '../HomePage/forcelogin.dart';
 import 'editpage.dart';
 
 class UserProfilePage extends StatefulWidget {
+  static const String routeName = '/userProfile';
+
   @override
   _UserProfilePageState createState() => _UserProfilePageState();
 }
@@ -21,19 +25,37 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Map<int, List<dynamic>> _replies = {};
   String _fullName = 'Loading...';
   String _email = 'Loading...';
-  String _profileImage = 'images/home_images/male_avatar.jpg';
+  String _profileImage = 'http://localhost:7000/images/home_images/male_avatar.jpg'; // Default URL
+  final String imageUrlBase = 'http://localhost:7000'; // Base URL for images
+  StreamController<int> _likesStreamController = StreamController<int>();
 
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
-    _fetchComments().then((comments) {
-      setState(() {
-        _comments = comments;
-        _fetchTotalLikes(comments);
-        _fetchAllReplies(comments);
+    _checkLoginStatus();
+    _setupPageReload();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    String? token = await storage.read(key: 'auth_token');
+    if (token == null) {
+      Navigator.pushReplacement(
+        context,
+        PageTransition(
+          child: ForceloginPage(destinationRoute: UserProfilePage.routeName),
+          type: PageTransitionType.fade,
+        ),
+      );
+    } else {
+      _loadUserProfile();
+      _fetchComments().then((comments) {
+        setState(() {
+          _comments = comments;
+          _fetchCommentLikes(comments);
+          _fetchAllReplies(comments);
+        });
       });
-    });
+    }
   }
 
   Future<List<Comment>> _fetchComments() async {
@@ -44,7 +66,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
 
     final response = await http.get(
-      Uri.parse('https://touchtender-web.onrender.com/v1/community/comments/user/$userId'),
+      Uri.parse('http://localhost:7000/v1/community/comments/user/$userId'),
     );
 
     if (response.statusCode == 200) {
@@ -58,10 +80,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
   }
 
-  Future<void> _fetchTotalLikes(List<Comment> comments) async {
+  Future<void> _fetchCommentLikes(List<Comment> comments) async {
     for (var comment in comments) {
       final response = await http.get(
-        Uri.parse('https://touchtender-web.onrender.com/v1/community/totallikes/${comment.commentId}'),
+        Uri.parse('http://localhost:7000/v1/community/totallikes/${comment.commentId}'),
       );
 
       if (response.statusCode == 200) {
@@ -78,7 +100,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Future<void> _fetchAllReplies(List<Comment> comments) async {
     for (var comment in comments) {
       final response = await http.get(
-        Uri.parse('https://touchtender-web.onrender.com/v1/community/comment/${comment.commentId}/replies'),
+        Uri.parse('http://localhost:7000/v1/community/comment/${comment.commentId}/replies'),
       );
 
       if (response.statusCode == 200) {
@@ -93,15 +115,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 
   Future<void> _logout() async {
-    // Remove the user ID and token from secure storage
     await storage.delete(key: 'user_id');
     await storage.delete(key: 'auth_token');
 
-    // Navigate to the login page
     Navigator.pushReplacement(
       context,
       PageTransition(
-        child: LoginScreen(), // Replace with your login page
+        child: HomePage(),
         type: PageTransitionType.fade,
       ),
     );
@@ -114,21 +134,53 @@ class _UserProfilePageState extends State<UserProfilePage> {
       _replies.remove(commentId);
     });
   }
+
   Future<void> _loadUserProfile() async {
     String? userId = await storage.read(key: 'user_id');
     if (userId != null) {
-      final response = await http.get(Uri.parse('https://touchtender-web.onrender.com/v1/auth/user/$userId'));
+      final response = await http.get(Uri.parse('http://localhost:7000/v1/auth/user/$userId'));
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
         setState(() {
           _fullName = jsonResponse['user']['fullName'];
           _email = jsonResponse['user']['email'];
-          _profileImage = jsonResponse['user']['image_url'];
+          _profileImage = '$imageUrlBase${jsonResponse['user']['image_url']}';
         });
+        _fetchTotalUserLikes(userId);
+      } else {
+        print('Failed to load user profile');
+        print('Status code: ${response.statusCode}');
+        print('Response body: ${response.body}');
       }
     }
   }
 
+  Future<void> _fetchTotalUserLikes(String userId) async {
+    final response = await http.get(
+      Uri.parse('http://localhost:7000/v1/community/totaluserlikes/$userId'),
+    );
+
+    if (response.statusCode == 200) {
+      final totalLikes = json.decode(response.body)['totalLikes'];
+      _likesStreamController.add(totalLikes);
+    } else {
+      print('Failed to load total user likes');
+      print('Status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
+    }
+  }
+
+  void _setupPageReload() {
+    Timer.periodic(Duration(seconds: 5), (_) async {
+      await _checkLoginStatus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _likesStreamController.close();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -150,7 +202,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
                 children: [
                   CircleAvatar(
                     radius: 40.0,
-                    backgroundImage: NetworkImage(_profileImage), // Changed to NetworkImage to load from URL
+                    backgroundImage: NetworkImage(_profileImage),
+                    onBackgroundImageError: (exception, stackTrace) {
+                      print('Error loading profile image: $exception');
+                      setState(() {
+                        _profileImage = 'http://localhost:7000/images/home_images/male_avatar.jpg'; // Fallback URL
+                      });
+                    },
                   ),
                   SizedBox(width: 16.0),
                   Column(
@@ -178,9 +236,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
                             size: 16.0,
                           ),
                           SizedBox(width: 4.0),
-                          Text(
-                            '250 Likes',
-                            style: TextStyle(color: Colors.purple[800]),
+                          StreamBuilder<int>(
+                            stream: _likesStreamController.stream,
+                            initialData: 0,
+                            builder: (context, snapshot) {
+                              return Text(
+                                '${snapshot.data} Likes',
+                                style: TextStyle(color: Colors.purple[800]),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -214,11 +278,10 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8.0),
                       child: ElevatedButton(
-                        onPressed: _logout, // Call the logout method
+                        onPressed: _logout,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.purple[800],
-                          foregroundColor: Colors.white,
-                        ),
+                            backgroundColor: Colors.purple[800],
+                            foregroundColor: Colors.white),
                         child: Text('Logout'),
                       ),
                     ),
@@ -231,7 +294,12 @@ class _UserProfilePageState extends State<UserProfilePage> {
                 thickness: 1.0,
               ),
               SizedBox(height: 16.0),
-              ListView.builder(
+              _comments.isEmpty
+                  ? Text(
+                'No comments yet!',
+                style: TextStyle(fontSize: 16.0, color: Colors.grey),
+              )
+                  : ListView.builder(
                 shrinkWrap: true,
                 physics: NeverScrollableScrollPhysics(),
                 itemCount: _comments.length,
@@ -241,7 +309,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     category: comment.category,
                     content: comment.content,
                     totalLikes: _totalLikes[comment.commentId] ?? 0,
-                    commentId: comment.commentId, // Pass the commentId here
+                    commentId: comment.commentId,
+                    createdAt: comment.createdAt,
                     replies: _replies[comment.commentId] ?? [],
                     removeComment: _removeComment,
                   );
@@ -296,6 +365,7 @@ class ThreadCard extends StatefulWidget {
   final String content;
   final int totalLikes;
   final int commentId;
+  final DateTime createdAt;
   final List<dynamic> replies;
   final void Function(int commentId) removeComment;
 
@@ -304,6 +374,7 @@ class ThreadCard extends StatefulWidget {
     required this.content,
     required this.totalLikes,
     required this.commentId,
+    required this.createdAt,
     required this.replies,
     required this.removeComment,
   });
@@ -316,9 +387,33 @@ class _ThreadCardState extends State<ThreadCard> {
   bool isLiked = false;
   bool _showAllReplies = false;
 
+  Future<void> _confirmDeleteComment(int commentId) async {
+    bool confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete Comment'),
+        content: Text('Are you sure you want to delete this comment?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('Delete'),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (confirmed) {
+      _deleteComment(commentId);
+    }
+  }
+
   Future<void> _deleteComment(int commentId) async {
     final response = await http.delete(
-      Uri.parse('https://touchtender-web.onrender.com/v1/community/deletecomment/$commentId'),
+      Uri.parse('http://localhost:7000/v1/community/deletecomment/$commentId'),
     );
 
     if (response.statusCode == 200) {
@@ -334,6 +429,19 @@ class _ThreadCardState extends State<ThreadCard> {
       context,
       MaterialPageRoute(
         builder: (context) => EditThreadPage(commentId: commentId),
+      ),
+    );
+  }
+
+  bool _isEditButtonEnabled(DateTime createdAt) {
+    final now = DateTime.now();
+    return now.difference(createdAt).inHours < 24;
+  }
+
+  void _showEditDisabledMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('24 hours have passed, you cannot edit this comment anymore.'),
       ),
     );
   }
@@ -372,6 +480,8 @@ class _ThreadCardState extends State<ThreadCard> {
 
   @override
   Widget build(BuildContext context) {
+    final isEditEnabled = _isEditButtonEnabled(widget.createdAt);
+
     return Card(
       color: Colors.purple[100],
       child: Padding(
@@ -398,14 +508,19 @@ class _ThreadCardState extends State<ThreadCard> {
                 IconButton(
                   icon: Icon(Icons.delete, color: Colors.red),
                   onPressed: () {
-                    _deleteComment(widget.commentId);
+                    _confirmDeleteComment(widget.commentId);
                   },
                 ),
-                IconButton(
-                  icon: Icon(Icons.edit, color: Colors.green),
-                  onPressed: () {
+                GestureDetector(
+                  onTap: isEditEnabled
+                      ? () {
                     _navigateToEditThreadPage(context, widget.commentId);
-                  },
+                  }
+                      : _showEditDisabledMessage,
+                  child: Icon(
+                    Icons.edit,
+                    color: isEditEnabled ? Colors.green : Colors.grey,
+                  ),
                 ),
               ],
             ),
@@ -416,7 +531,7 @@ class _ThreadCardState extends State<ThreadCard> {
   }
 
   Widget _buildReplies() {
-    bool shouldShowViewMore = widget.replies.length > 2 && !_showAllReplies; // Control the "View More" button
+    bool shouldShowViewMore = widget.replies.length > 2 && !_showAllReplies;
     List<Widget> visibleReplies;
 
     if (_showAllReplies) {
@@ -435,7 +550,7 @@ class _ThreadCardState extends State<ThreadCard> {
             style: TextStyle(
               fontSize: 16.0,
               fontWeight: FontWeight.bold,
-              color: Colors.deepPurple, // Customize color to suit app theme
+              color: Colors.deepPurple,
             ),
           ),
         ),
@@ -444,7 +559,7 @@ class _ThreadCardState extends State<ThreadCard> {
           TextButton(
             onPressed: () {
               setState(() {
-                _showAllReplies = true; // Show all replies
+                _showAllReplies = true;
               });
             },
             child: Text('View More'),
@@ -461,13 +576,12 @@ class _ThreadCardState extends State<ThreadCard> {
         children: [
           Text(
             reply['Content'],
-            style: TextStyle(fontSize: 14.0, color: Colors.black54), // Customize font as needed
+            style: TextStyle(fontSize: 14.0, color: Colors.black54),
           ),
           Text(
             'Posted on ${DateTime.parse(reply['CreatedAt']).toLocal()}',
             style: TextStyle(fontSize: 12.0, color: Colors.grey),
           ),
-          // Add more details or interaction buttons here if needed
         ],
       ),
     );

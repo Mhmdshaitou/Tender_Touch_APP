@@ -4,7 +4,10 @@ import 'package:page_transition/page_transition.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../../../Chatbot/ChatApp.dart';
+import '../../../../Community/community_home.dart';
 import '../../../../Doctors/ui/root_page.dart';
+import '../../../../Profile/profile_page.dart';
 import '../../../components/already_have_an_account_acheck.dart';
 import '../../Signup/signup_screen.dart';
 import 'package:tender_touch/HomePage/homepage.dart';
@@ -13,7 +16,10 @@ const kPrimaryColor = Color(0xFF107153);
 const double defaultPadding = 16.0;
 
 class LoginForm extends StatefulWidget {
-  const LoginForm({Key? key}) : super(key: key);
+  static const String routeName = '/login_form';
+  final String destinationRoute;
+
+  const LoginForm({Key? key, required this.destinationRoute}) : super(key: key);
 
   @override
   State<LoginForm> createState() => _LoginFormState();
@@ -28,8 +34,6 @@ class _LoginFormState extends State<LoginForm> {
   String? _token;
   final storage = FlutterSecureStorage();
 
-
-
   void _login() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
@@ -39,7 +43,7 @@ class _LoginFormState extends State<LoginForm> {
 
       try {
         var response = await http.post(
-          Uri.parse('https://touchtender-web.onrender.com/v1/auth/login'),
+          Uri.parse('http://localhost:7000/v1/auth/login'),
           headers: <String, String>{
             'Content-Type': 'application/json; charset=UTF-8',
           },
@@ -66,7 +70,7 @@ class _LoginFormState extends State<LoginForm> {
           Navigator.pushReplacement(
             context,
             PageTransition(
-              child: HomePage(), // Navigate to HomePage
+              child: _getDestinationPage(widget.destinationRoute), // Navigate to the destination page
               type: PageTransitionType.bottomToTop,
             ),
           );
@@ -80,6 +84,19 @@ class _LoginFormState extends State<LoginForm> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Widget _getDestinationPage(String route) {
+    switch (route) {
+      case UserProfilePage.routeName:
+        return UserProfilePage();
+      case CommunityPage.routeName:
+        return CommunityPage();
+      case ChatScreen.routeName:
+        return ChatScreen();
+      default:
+        return HomePage();
     }
   }
 
@@ -100,35 +117,6 @@ class _LoginFormState extends State<LoginForm> {
       ),
     );
   }
-
-  Future<void> fetchUserData() async {
-    String? userId = await storage.read(key: 'user_id');
-    String? token = await storage.read(key: 'auth_token');
-
-    if (userId == null || token == null) {
-      _showErrorDialog('No user ID or token found, please login again.');
-      return;
-    }
-
-    try {
-      var response = await http.get(
-        Uri.parse('https://touchtender-web.onrender.com/v1/user/profile'),
-        headers: <String, String>{
-          'Content-Type': 'application/json; charset=UTF-8',
-          'Authorization': 'Bearer $_token', // Add the token here
-        },
-      );
-
-      if (response.statusCode == 200) {
-        print('Data: ${response.body}');
-      } else {
-        print('Failed to load data');
-      }
-    } catch (e) {
-      print('Error occurred: $e');
-    }
-  }
-
 
   @override
   Widget build(BuildContext context) {

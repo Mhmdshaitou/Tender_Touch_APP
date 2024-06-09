@@ -16,6 +16,8 @@ class _PlacesMainPageState extends State<PlacesMainPage> {
   List<Place> filteredPlaces = [];
   String searchQuery = '';
   String classification = '';
+  final String baseUrl = 'http://localhost:7000/v1'; // Change this to your server's IP address or hostname
+  final String imageUrlBase = 'http://localhost:7000'; // Base URL for images
 
   final storage = FlutterSecureStorage();
 
@@ -26,7 +28,7 @@ class _PlacesMainPageState extends State<PlacesMainPage> {
   }
 
   Future<void> fetchPlaces() async {
-    final response = await http.get(Uri.parse('https://touchtender-web.onrender.com/v1/place/approved'));
+    final response = await http.get(Uri.parse('$baseUrl/place/approved'));
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       List<Place> loadedPlaces = (data['places'] as List).map<Place>((json) => Place.fromJson(json)).toList();
@@ -46,7 +48,7 @@ class _PlacesMainPageState extends State<PlacesMainPage> {
   }
 
   Future<double?> fetchAverageRating(int placeID) async {
-    final response = await http.get(Uri.parse('https://touchtender-web.onrender.com/v1/place/ratings/average/$placeID'));
+    final response = await http.get(Uri.parse('$baseUrl/place/ratings/average/$placeID'));
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       return data['averageRating']?.toDouble();
@@ -161,6 +163,7 @@ class _PlacesMainPageState extends State<PlacesMainPage> {
                     onTap: () {
                       showPlaceDetailsDialog(context, place);
                     },
+                    imageUrlBase: imageUrlBase,
                   );
                 },
               ),
@@ -182,6 +185,7 @@ class _PlacesMainPageState extends State<PlacesMainPage> {
         onLocation: () {
           _launchURL(place.location);
         },
+        imageUrlBase: imageUrlBase,
       ),
     );
   }
@@ -190,7 +194,7 @@ class _PlacesMainPageState extends State<PlacesMainPage> {
     try {
       int userID = await getUserIdFromToken();
       final response = await http.post(
-        Uri.parse('https://touchtender-web.onrender.com/v1/place/ratings/$placeID'),
+        Uri.parse('$baseUrl/place/ratings/$placeID'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -200,17 +204,20 @@ class _PlacesMainPageState extends State<PlacesMainPage> {
         }),
       );
 
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
+      if (response.statusCode == 201) {
+        // Fetch the updated average rating from the server
+        double? updatedAvgRating = await fetchAverageRating(placeID);
 
-      if (response.statusCode == 200) {
         // Update the rating locally
-        setState(() async {
-          places.firstWhere((place) => place.placeid == placeID).rating = await fetchAverageRating(placeID);
-          filteredPlaces = places;
+        setState(() {
+          var placeIndex = places.indexWhere((place) => place.placeid == placeID);
+          if (placeIndex != -1) {
+            places[placeIndex].rating = updatedAvgRating;
+            filteredPlaces = List.from(places);
+          }
         });
       } else {
-        throw Exception('Failed to submit rating');
+        throw Exception('Failed to submit rating: ${response.body}');
       }
     } catch (e) {
       print('Error submitting rating: $e');
@@ -229,12 +236,13 @@ class _PlacesMainPageState extends State<PlacesMainPage> {
 class PlaceCard extends StatelessWidget {
   final Place place;
   final VoidCallback onTap;
+  final String imageUrlBase;
 
-  PlaceCard({required this.place, required this.onTap});
+  PlaceCard({required this.place, required this.onTap, required this.imageUrlBase});
 
   @override
   Widget build(BuildContext context) {
-    var imageUrl = place.photos.isNotEmpty ? 'https://touchtender-web.onrender.com/' + place.photos.first.photoUrl : 'https://via.placeholder.com/300x100';
+    var imageUrl = place.photos.isNotEmpty ? '$imageUrlBase${place.photos.first.photoUrl}' : 'https://via.placeholder.com/300x100';
     print('Image URL: $imageUrl');
     return GestureDetector(
       onTap: onTap,
@@ -243,13 +251,21 @@ class PlaceCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Image(
-                image: NetworkImage(imageUrl),
-                height: 150,
+              Image.network(
+                imageUrl,
+                width: 600,
+                height: 200,
                 fit: BoxFit.cover,
                 errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
-                  print('Failed to load image: $exception, Stack Trace: $stackTrace');
-                  return Text('Failed to load image: $exception');
+                  print('Error loading image: $exception');
+                  return Container(
+                    width: 300,
+                    height: 100,
+                    color: Colors.grey[300],
+                    child: const Center(
+                      child: Text('Error loading image'),
+                    ),
+                  );
                 },
               ),
               Padding(
@@ -336,11 +352,13 @@ class PlaceDetailsDialog extends StatefulWidget {
   final Place place;
   final Function(int) onRate;
   final VoidCallback onLocation;
+  final String imageUrlBase;
 
   PlaceDetailsDialog({
     required this.place,
     required this.onRate,
     required this.onLocation,
+    required this.imageUrlBase,
   });
 
   @override
@@ -352,8 +370,7 @@ class _PlaceDetailsDialogState extends State<PlaceDetailsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    var imageUrl = widget.place.photos.isNotEmpty ? 'https://touchtender-web.onrender.com/' + widget.place.photos.first.photoUrl : 'https://via.placeholder.com/300x100';
-    print('Image URL: $imageUrl');
+    var imageUrl = widget.place.photos.isNotEmpty ? '${widget.imageUrlBase}${widget.place.photos.first.photoUrl}' : 'https://via.placeholder.com/300x100';
     return AlertDialog(
       title: Text(
         widget.place.name,
@@ -362,42 +379,56 @@ class _PlaceDetailsDialogState extends State<PlaceDetailsDialog> {
           fontSize: 25.0,
         ),
       ),
-      content: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Image(
-            image: NetworkImage(imageUrl),
-            height: 150,
-            fit: BoxFit.cover,
-            errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
-              print('Failed to load image: $exception');
-              return Text('Failed to load image');
-            },
-          ),
-          Text(
-            widget.place.classification,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.network(
+              imageUrl,
+              width: 600,
+              height: 200,
+              fit: BoxFit.cover,
+              errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
+                print('Error loading image: $exception');
+                return Container(
+                  width: 300,
+                  height: 100,
+                  color: Colors.grey[300],
+                  child: const Center(
+                    child: Text('Error loading image'),
+                  ),
+                );
+              },
             ),
-          ),
-          Text((widget.place.region ?? '') + ' - ' + (widget.place.city ?? '')),
-          Text(widget.place.description ?? ''),
-          Text('Rate this place: '),
-
-          Row(
-            children: List.generate(
-              5,
-                  (index) => GestureDetector(
-                onTap: () => setState(() => rating = index + 1),
-                child: Icon(
-                  index < rating ? Icons.star : Icons.star_border,
-                  color: Colors.amber,
+            const SizedBox(height: 16.0),
+            Text(
+              widget.place.classification,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text((widget.place.region ?? '') + ' - ' + (widget.place.city ?? '')),
+            Text(widget.place.description ?? ''),
+            ...widget.place.services.map((service) => ListTile(
+              title: Text(service.servicename),
+              subtitle: Text(service.description),
+            )).toList(),
+            Text('Rate this place: '),
+            Row(
+              children: List.generate(
+                5,
+                    (index) => GestureDetector(
+                  onTap: () => setState(() => rating = index + 1),
+                  child: Icon(
+                    index < rating ? Icons.star : Icons.star_border,
+                    color: Colors.amber,
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       actions: [
         TextButton(
@@ -429,6 +460,7 @@ class Place {
   double? rating;
   final String? description;
   final List<Photo> photos;
+  final List<Service> services;
 
   Place({
     required this.placeid,
@@ -443,6 +475,7 @@ class Place {
     this.rating,
     this.description,
     required this.photos,
+    required this.services,
   });
 
   factory Place.fromJson(Map<String, dynamic> json) {
@@ -459,6 +492,23 @@ class Place {
       rating: json['rating']?.toDouble(),
       description: json['description'],
       photos: (json['photos'] as List).map((photoJson) => Photo.fromJson(photoJson)).toList(),
+      services: (json['services'] as List).map((serviceJson) => Service.fromJson(serviceJson)).toList(),
+    );
+  }
+}
+
+class Service {
+  final int serviceid;
+  final String servicename;
+  final String description;
+
+  Service({required this.serviceid, required this.servicename, required this.description});
+
+  factory Service.fromJson(Map<String, dynamic> json) {
+    return Service(
+      serviceid: json['serviceid'],
+      servicename: json['servicename'],
+      description: json['description'],
     );
   }
 }

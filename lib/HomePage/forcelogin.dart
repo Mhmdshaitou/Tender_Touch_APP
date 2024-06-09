@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-
+import 'package:tender_touch/HomePage/homepage.dart';
 import '../login/Screens/Login/login_screen.dart';
 
-
-
 class ForceloginPage extends StatelessWidget {
+  static const String routeName = '/forcelogin';
+  final String destinationRoute;
+
+  ForceloginPage({required this.destinationRoute});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -13,8 +16,14 @@ class ForceloginPage extends StatelessWidget {
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () {
-            // Assuming the user is navigating back to a previous page
-            Navigator.pop(context);
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => HomePage()),
+              );
+            }
           },
         ),
       ),
@@ -38,19 +47,12 @@ class ForceloginPage extends StatelessWidget {
             ),
             SizedBox(height: 16.0),
             ElevatedButton(
-              child: Text('Lets Login'),
+              child: Text('Let\'s Login'),
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  MaterialPageRoute(builder: (context) => LoginScreen(destinationRoute: destinationRoute)),
                 );
-              },
-            ),
-            TextButton(
-              child: Text('Cancel'),
-              onPressed: () {
-                // Assuming the user is navigating back to a previous page
-                Navigator.pop(context);
               },
             ),
           ],
@@ -59,4 +61,3 @@ class ForceloginPage extends StatelessWidget {
     );
   }
 }
-

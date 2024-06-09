@@ -3,15 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
-import 'package:tender_touch/HomePage/homepage.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:page_transition/page_transition.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:open_app_settings/open_app_settings.dart';
+import 'package:tender_touch/HomePage/homepage.dart';
+import '../HomePage/forcelogin.dart';
 import '../Activities/background.dart';
 
 const kPrimaryColor = Color(0xFF107153);
 const double defaultPadding = 16.0;
 
 class PlacesForm extends StatefulWidget {
+  static const String routeName = '/placesForm';
   const PlacesForm({Key? key}) : super(key: key);
 
   @override
@@ -27,7 +31,8 @@ class _PlacesFormState extends State<PlacesForm> {
   String _city = '';
   List<String> _selectedServices = [];
   String _location = '';
-  List<String> _imagePaths = [];
+  String? _imagePath;
+  final storage = FlutterSecureStorage();
 
   final List<String> _classifications = [
     'Entertaining Cinema',
@@ -61,6 +66,25 @@ class _PlacesFormState extends State<PlacesForm> {
 
   List<String> _cities = [];
 
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    String? token = await storage.read(key: 'auth_token');
+    if (token == null) {
+      Navigator.pushReplacement(
+        context,
+        PageTransition(
+          child: ForceloginPage(destinationRoute: PlacesForm.routeName),
+          type: PageTransitionType.fade,
+        ),
+      );
+    }
+  }
+
   Future<void> _register(BuildContext context) async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
@@ -69,21 +93,21 @@ class _PlacesFormState extends State<PlacesForm> {
       });
 
       try {
-        var response = await http.post(
-          Uri.parse('https://touchtender-web.onrender.com/v1/place/createplace'),
-          headers: <String, String>{
-            'Content-Type': 'application/json; charset=UTF-8',
-          },
-          body: jsonEncode(<String, dynamic>{
-            'placeName': _placeName,
-            'classification': _selectedClassification,
-            'region': _region,
-            'city': _city,
-            'services': _selectedServices,
-            'location': _location,
-            'imagePaths': _imagePaths,
-          }),
-        );
+        var request = http.MultipartRequest('POST', Uri.parse('http://localhost:7000/v1/place/createplace'));
+        request.headers['Content-Type'] = 'application/json; charset=UTF-8';
+
+        request.fields['placeName'] = _placeName;
+        request.fields['classification'] = _selectedClassification;
+        request.fields['region'] = _region;
+        request.fields['city'] = _city;
+        request.fields['services'] = jsonEncode(_selectedServices);
+        request.fields['location'] = _location;
+
+        if (_imagePath != null) {
+          request.files.add(await http.MultipartFile.fromPath('image', _imagePath!));
+        }
+
+        var response = await request.send();
 
         if (response.statusCode == 200) {
           Navigator.pushReplacement(
@@ -94,7 +118,7 @@ class _PlacesFormState extends State<PlacesForm> {
             SnackBar(content: Text('Registration Successful')),
           );
         } else {
-          _showErrorDialog(context, jsonDecode(response.body)['message']);
+          _showErrorDialog(context, 'Failed to register the place. Please try again.');
         }
       } catch (e) {
         _showErrorDialog(context, 'Failed to connect to the server. Please try again later.');
@@ -186,24 +210,24 @@ class _PlacesFormState extends State<PlacesForm> {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.image,
-        allowMultiple: true,
+        allowMultiple: false,
       );
 
       if (result != null) {
         setState(() {
-          _imagePaths.addAll(result.paths.map((path) => path!).toList());
+          _imagePath = result.files.single.path;
         });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to pick images: $e")),
+        SnackBar(content: Text("Failed to pick image: $e")),
       );
     }
   }
 
-  void _removeImage(String path) {
+  void _removeImage() {
     setState(() {
-      _imagePaths.remove(path);
+      _imagePath = null;
     });
   }
 
@@ -498,45 +522,38 @@ class _PlacesFormState extends State<PlacesForm> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     padding: EdgeInsets.all(8),
-                    child: _imagePaths.isEmpty
+                    child: _imagePath == null
                         ? Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.image, color: Colors.grey),
                         SizedBox(width: 10, height: 100,),
-                        Text('Select Images', style: TextStyle(color: Colors.grey)),
+                        Text('Select Image', style: TextStyle(color: Colors.grey)),
                       ],
                     )
-                        : SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: _imagePaths.map((path) {
-                          return Stack(
-                            children: [
-                              Container(
-                                margin: EdgeInsets.symmetric(horizontal: 5),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(5),
-                                  child: Image.file(
-                                    File(path),
-                                    width: 80,
-                                    height: 80,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              ),
-                              Positioned(
-                                top: 0,
-                                right: 0,
-                                child: InkWell(
-                                  onTap: () => _removeImage(path),
-                                  child: Icon(Icons.close, color: Colors.red, size: 24),
-                                ),
-                              ),
-                            ],
-                          );
-                        }).toList(),
-                      ),
+                        : Stack(
+                      children: [
+                        Container(
+                          margin: EdgeInsets.symmetric(horizontal: 5),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(5),
+                            child: Image.file(
+                              File(_imagePath!),
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: InkWell(
+                            onTap: _removeImage,
+                            child: Icon(Icons.close, color: Colors.red, size: 24),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

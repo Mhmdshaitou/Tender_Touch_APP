@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:tender_touch/Doctors/models/doctor.dart';
 
 Future<List<Doctor>> fetchDoctorsFromApi() async {
-  final response = await http.get(Uri.parse('https://touchtender-web.onrender.com/v1/dr'));
+  final response = await http.get(Uri.parse('http://localhost:7000/v1/dr'));
 
   if (response.statusCode == 200) {
     final responseBody = jsonDecode(response.body);

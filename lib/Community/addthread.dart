@@ -34,7 +34,7 @@ class _AddThreadPageState extends State<AddThreadPage> {
 
     try {
       var response = await http.post(
-        Uri.parse('https://touchtender-web.onrender.com/v1/community/addcomment'),
+        Uri.parse('http://localhost:7000/v1/community/addcomment'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
           'Authorization': 'Bearer $token',
@@ -90,14 +90,15 @@ class _AddThreadPageState extends State<AddThreadPage> {
         actions: <Widget>[
           TextButton(
             child: Text('Okay'),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => CommunityPage(),
-                  ),
-                );
-              }
+            onPressed: () {
+              Navigator.of(ctx).pop(); // Dismiss the dialog
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CommunityPage(),
+                ),
+              );
+            },
           ),
         ],
       ),

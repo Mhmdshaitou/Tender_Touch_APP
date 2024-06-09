@@ -81,7 +81,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (userId == null) {
       throw Exception('User ID not found, please login again.');
     }
-    final response = await http.get(Uri.parse('https://touchtender-web.onrender.com/v1/auth/user/$userId'));
+    final response = await http.get(Uri.parse('http://localhost:7000v1/auth/user/$userId'));
 
     if (response.statusCode == 200) {
       var data = jsonDecode(response.body);
@@ -89,7 +89,7 @@ class _MyHomePageState extends State<MyHomePage> {
       var firstName = fullName.split(' ')[0];
       return firstName;
     } else {
-      throw Exception('Failed to load user name with status code: ${response.statusCode}');
+      throw Exception('Hello Dear');
     }
   }
 
@@ -103,7 +103,7 @@ class _MyHomePageState extends State<MyHomePage> {
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.done) {
               if (snapshot.hasError) {
-                return Text('Error: ${snapshot.error}');
+                return Text('Hello Dear!');
               }
               return Text('Hii ${snapshot.data}');
             } else {
@@ -174,7 +174,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 },
               ),
             ),
-
             MenuGrid(),
           ],
         ),
@@ -210,82 +209,92 @@ class _MyHomePageState extends State<MyHomePage> {
 class MenuGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: NeverScrollableScrollPhysics(),
+    return Column(
       children: <Widget>[
-        InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => ChatBotPage()),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: MenuButton(title: 'Chat AI',
-                iconPath: 'images/menubuttons/chatbot.png',
-                color: buttonColor1),
-          ),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          children: <Widget>[
+            InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ChatBotPage()),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: MenuButton(title: 'Chat AI',
+                    iconPath: 'images/menubuttons/chatbot.png',
+                    color: buttonColor1),
+              ),
+            ),
+            InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => CommunityPage()),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: MenuButton(title: 'Community',
+                    iconPath: 'images/menubuttons/community.png',
+                    color: buttonColor3),
+              ),
+            ),
+            InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => PlacesMainPage()),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: MenuButton(
+                    title: 'Places',
+                    iconPath: 'images/menubuttons/places.png',
+                    color: buttonColor4),
+              ),
+            ),
+            InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ActivitiesPage()),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: MenuButton(
+                    title: 'Activities',
+                    iconPath: 'images/menubuttons/activities.png',
+                    color: buttonColor5),
+              ),
+            ),
+          ],
         ),
-        InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => CommunityPage()),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: MenuButton(title: 'Community',
-                iconPath: 'images/menubuttons/community.png',
-                color: buttonColor3),
-          ),
-        ),
-        InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => PlacesMainPage()),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: MenuButton(
-                title: 'Places',
-                iconPath: 'images/menubuttons/places.png',
-                color: buttonColor4),
-          ),
-        ),
-        InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => RootPage()),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: MenuButton(
+        Container(
+          height: 280, // Set the desired height here
+          child: InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => RootPage()),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: MenuButton(
                 title: 'Doctor',
                 iconPath: 'images/menubuttons/doctors.png',
-                color: buttonColor2),
-          ),
-        ),
-        InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => ActivitiesPage()),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: MenuButton(
-                title: 'Activities',
-                iconPath: 'images/menubuttons/activities.png',
-                color: buttonColor5),
+                color: buttonColor2,
+                imageHeight: 250, // Set the desired image height here
+                imageWidth: 250,  // Set the desired image width here
+              ),
+            ),
           ),
         ),
       ],
@@ -297,8 +306,10 @@ class MenuButton extends StatelessWidget {
   final String title;
   final String iconPath;
   final Color color;
+  final double? imageHeight;
+  final double? imageWidth;
 
-  const MenuButton({Key? key, required this.title, required this.iconPath, required this.color}) : super(key: key);
+  const MenuButton({Key? key, required this.title, required this.iconPath, required this.color, this.imageHeight, this.imageWidth}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -323,8 +334,8 @@ class MenuButton extends StatelessWidget {
               padding: const EdgeInsets.all(8.0),
               child: Image.asset(
                 iconPath,
-                height: 130,
-                width: 130,
+                height: imageHeight ?? 130, // Use the provided image height if available
+                width: imageWidth ?? 130,   // Use the provided image width if available
               ),
             ),
           ),
