@@ -16,15 +16,30 @@ class _PlacesMainPageState extends State<PlacesMainPage> {
   List<Place> filteredPlaces = [];
   String searchQuery = '';
   String classification = '';
-  final String baseUrl = 'http://localhost:7000/v1'; // Change this to your server's IP address or hostname
-  final String imageUrlBase = 'http://localhost:7000'; // Base URL for images
+  final String baseUrl = 'https://touchtender-web.onrender.com/v1'; // Change this to your server's IP address or hostname
+  final String imageUrlBase = 'https://touchtender-web.onrender.com'; // Base URL for images
 
   final storage = FlutterSecureStorage();
+  bool isUserLoggedIn = false;
 
   @override
   void initState() {
     super.initState();
+    checkUserLoggedIn();
     fetchPlaces();
+  }
+
+  Future<void> checkUserLoggedIn() async {
+    try {
+      await getUserIdFromToken();
+      setState(() {
+        isUserLoggedIn = true;
+      });
+    } catch (e) {
+      setState(() {
+        isUserLoggedIn = false;
+      });
+    }
   }
 
   Future<void> fetchPlaces() async {
@@ -186,6 +201,7 @@ class _PlacesMainPageState extends State<PlacesMainPage> {
           _launchURL(place.location);
         },
         imageUrlBase: imageUrlBase,
+        isUserLoggedIn: isUserLoggedIn,
       ),
     );
   }
@@ -286,9 +302,7 @@ class PlaceCard extends StatelessWidget {
                       children: List.generate(
                         5,
                             (index) => Icon(
-                          index < (place.rating?.round() ?? 0)
-                              ? Icons.star
-                              : Icons.star_border,
+                          index < (place.rating?.round() ?? 0) ? Icons.star : Icons.star_border,
                           color: Colors.amber,
                         ),
                       ),
@@ -353,12 +367,14 @@ class PlaceDetailsDialog extends StatefulWidget {
   final Function(int) onRate;
   final VoidCallback onLocation;
   final String imageUrlBase;
+  final bool isUserLoggedIn;
 
   PlaceDetailsDialog({
     required this.place,
     required this.onRate,
     required this.onLocation,
     required this.imageUrlBase,
+    required this.isUserLoggedIn,
   });
 
   @override
@@ -414,30 +430,33 @@ class _PlaceDetailsDialogState extends State<PlaceDetailsDialog> {
               title: Text(service.servicename),
               subtitle: Text(service.description),
             )).toList(),
-            Text('Rate this place: '),
-            Row(
-              children: List.generate(
-                5,
-                    (index) => GestureDetector(
-                  onTap: () => setState(() => rating = index + 1),
-                  child: Icon(
-                    index < rating ? Icons.star : Icons.star_border,
-                    color: Colors.amber,
+            if (widget.isUserLoggedIn) ...[
+              Text('Rate this place: '),
+              Row(
+                children: List.generate(
+                  5,
+                      (index) => GestureDetector(
+                    onTap: () => setState(() => rating = index + 1),
+                    child: Icon(
+                      index < rating ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () {
-            widget.onRate(rating);
-            Navigator.pop(context);
-          },
-          child: Text('Rate'),
-        ),
+        if (widget.isUserLoggedIn)
+          TextButton(
+            onPressed: () {
+              widget.onRate(rating);
+              Navigator.pop(context);
+            },
+            child: Text('Rate'),
+          ),
         TextButton(
           onPressed: widget.onLocation,
           child: Text('Visit now!'),

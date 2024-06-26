@@ -7,9 +7,10 @@ import 'package:tender_touch/Activities/activities.dart';
 import 'package:tender_touch/Community/community_home.dart';
 import 'package:tender_touch/Doctors/ui/root_page.dart';
 import 'package:tender_touch/Places/MainPlaces.dart';
+import '../Appointment_System/appointmentmain.dart';
+import '../Appointment_System/main_layout.dart';
 import '../Chatbot/ChatApp.dart';
 import '../Profile/profile_page.dart';
-import 'notifications.dart';
 
 void main() {
   runApp(HomePage());
@@ -81,7 +82,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (userId == null) {
       throw Exception('User ID not found, please login again.');
     }
-    final response = await http.get(Uri.parse('http://localhost:7000v1/auth/user/$userId'));
+    final response = await http.get(Uri.parse('https://touchtender-web.onrender.comv1/auth/user/$userId'));
 
     if (response.statusCode == 200) {
       var data = jsonDecode(response.body);
@@ -282,7 +283,7 @@ class MenuGrid extends StatelessWidget {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => RootPage()),
+                MaterialPageRoute(builder: (context) => AppointmentmainPage()),
               );
             },
             child: Padding(

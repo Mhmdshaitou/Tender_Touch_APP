@@ -26,6 +26,12 @@ dependencies:
   open_app_settings: ^2.0.1 #open settings for permission
   shared_preferences: ^2.0.17 #to update user's info
   mime: ^1.0.4 #for image upload to the database
+  font_awesome_flutter: ^10.2.1 #font used in the doctor's page
+  table_calendar: ^3.0.8 #to use the calendar
+  lottie: ^2.0.0 # display Lottie animations
+  dio: ^4.0.6 # powerful HTTP client for Dart
+  rating_dialog: ^2.0.4 # create rating dialogs in the app
+  provider: ^6.0.4 # state management solution
 
 dev_dependencies:
   flutter_test:

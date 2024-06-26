@@ -12,6 +12,8 @@ import '../../../components/already_have_an_account_acheck.dart';
 import '../../Signup/signup_screen.dart';
 import 'package:tender_touch/HomePage/homepage.dart';
 
+import 'email_verification.dart';
+
 const kPrimaryColor = Color(0xFF107153);
 const double defaultPadding = 16.0;
 
@@ -43,7 +45,7 @@ class _LoginFormState extends State<LoginForm> {
 
       try {
         var response = await http.post(
-          Uri.parse('http://localhost:7000/v1/auth/login'),
+          Uri.parse('https://touchtender-web.onrender.com/v1/auth/login'),
           headers: <String, String>{
             'Content-Type': 'application/json; charset=UTF-8',
           },
@@ -118,6 +120,26 @@ class _LoginFormState extends State<LoginForm> {
     );
   }
 
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your email';
+    }
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+      return 'Please enter a valid email';
+    }
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your password';
+    }
+    if (value.length < 6) {
+      return 'Password must be at least 6 characters';
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -134,7 +156,7 @@ class _LoginFormState extends State<LoginForm> {
                 textInputAction: TextInputAction.next,
                 cursorColor: kPrimaryColor,
                 onSaved: (value) => _email = value!,
-                validator: (value) => value!.isEmpty ? 'Please enter your email' : null,
+                validator: _validateEmail,
                 decoration: InputDecoration(
                   hintText: "Your email",
                   prefixIcon: Padding(
@@ -162,7 +184,7 @@ class _LoginFormState extends State<LoginForm> {
                   cursorColor: kPrimaryColor,
                   obscureText: !_passwordVisible,
                   onSaved: (value) => _password = value!,
-                  validator: (value) => value!.isEmpty ? 'Please enter your password' : null,
+                  validator: _validatePassword,
                   decoration: InputDecoration(
                     hintText: "Your password",
                     prefixIcon: Padding(
@@ -192,6 +214,33 @@ class _LoginFormState extends State<LoginForm> {
                     ),
                   ),
                 ),
+              ),
+              SizedBox(height: defaultPadding / 2),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Forgot your password? ',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EmailVerificationPage(),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      'Reset now',
+                      style: TextStyle(
+                        color: kPrimaryColor,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               SizedBox(height: defaultPadding),
               ElevatedButton(

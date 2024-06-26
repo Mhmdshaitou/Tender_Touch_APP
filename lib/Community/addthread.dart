@@ -34,7 +34,7 @@ class _AddThreadPageState extends State<AddThreadPage> {
 
     try {
       var response = await http.post(
-        Uri.parse('http://localhost:7000/v1/community/addcomment'),
+        Uri.parse('https://touchtender-web.onrender.com/v1/community/addcomment'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
           'Authorization': 'Bearer $token',

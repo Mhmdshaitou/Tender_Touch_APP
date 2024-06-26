@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/services.dart'; // Add this line
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -8,7 +8,7 @@ import 'dart:convert';
 import '../../../components/already_have_an_account_acheck.dart';
 import '../../Login/login_screen.dart';
 import 'package:mime/mime.dart';
-import 'package:http_parser/http_parser.dart'; // Add this line
+import 'package:http_parser/http_parser.dart';
 
 const kPrimaryColor = Color(0xFF107153);
 const double defaultPadding = 16.0;
@@ -48,7 +48,7 @@ class _SignUpFormState extends State<SignUpForm> {
         _isLoading = true;
       });
 
-      var uri = Uri.parse('http://localhost:7000/v1/auth/signup');
+      var uri = Uri.parse('https://touchtender-web.onrender.com/v1/auth/signup');
       var request = http.MultipartRequest('POST', uri)
         ..fields['email'] = _email
         ..fields['password'] = _password
@@ -56,59 +56,48 @@ class _SignUpFormState extends State<SignUpForm> {
         ..fields['gender'] = _gender;
 
       if (_userImage != null) {
-        print('User picked an image from the gallery');
-        print('Image path: ${_userImage!.path}');
-
+        final mimeType = lookupMimeType(_userImage!.path);
         request.files.add(
-          await http.MultipartFile.fromPath('user_image', _userImage!.path),
+          await http.MultipartFile.fromPath(
+            'user_image',
+            _userImage!.path,
+            contentType: mimeType != null ? MediaType.parse(mimeType) : null,
+          ),
         );
-        print('MultipartFile added to request');
       } else {
-        // Send the default avatar as a file
-        print('User selected a default avatar');
         String avatarPath;
         if (_gender == 'Male') {
           avatarPath = 'images/home_images/male_avatar.jpg'; // Replace with the appropriate path
         } else {
           avatarPath = 'images/home_images/female_avatar.jpg'; // Replace with the appropriate path
         }
-        print('Avatar path: $avatarPath');
 
         final avatarBytes = await rootBundle.load(avatarPath);
-        final mimeType = lookupMimeType(avatarPath); // Get the MIME type of the avatar image
+        final mimeType = lookupMimeType(avatarPath);
         final avatarFile = http.MultipartFile.fromBytes(
           'user_image',
           avatarBytes.buffer.asUint8List(),
           filename: avatarPath.split('/').last,
-          contentType: mimeType != null ? MediaType.parse(mimeType) : null, // Parse the MIME type to MediaType
+          contentType: mimeType != null ? MediaType.parse(mimeType) : null,
         );
         request.files.add(avatarFile);
-        print('MultipartFile added to request');
       }
 
       try {
-        print('Sending request to server...');
         var streamedResponse = await request.send();
-        print('Received response from server');
         var response = await http.Response.fromStream(streamedResponse);
-        print('Response status code: ${response.statusCode}');
 
         if (response.statusCode == 200) {
-          try {
-            var responseData = jsonDecode(response.body);
-            print('Response data: $responseData');
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => LoginScreen(destinationRoute: '/'), // Update with correct destination
-              ),
-            );
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Registration Successful')),
-            );
-          } catch (e) {
-            _showErrorDialog('Failed to parse response: $e');
-          }
+          var responseData = jsonDecode(response.body);
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => LoginScreen(destinationRoute: '/'),
+            ),
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Registration Successful')),
+          );
         } else {
           _showErrorDialog('Error ${response.statusCode}: ${response.reasonPhrase}');
         }
@@ -142,8 +131,8 @@ class _SignUpFormState extends State<SignUpForm> {
 
   void _setDefaultAvatar(String avatarUrl) {
     setState(() {
-      userimage = avatarUrl; // Adjust to your actual accessible URL path
-      _userImage = null; // Reset the picked image
+      userimage = avatarUrl;
+      _userImage = null;
     });
   }
 
@@ -338,7 +327,7 @@ class _SignUpFormState extends State<SignUpForm> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => LoginScreen(destinationRoute: '/'), // Update with correct destination
+                      builder: (context) => LoginScreen(destinationRoute: '/'),
                     ),
                   );
                 },

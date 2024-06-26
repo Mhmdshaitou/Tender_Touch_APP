@@ -38,7 +38,7 @@ class _ActivitiesFormState extends State<ActivitiesForm> {
 
       try {
         var response = await http.post(
-          Uri.parse('http://localhost:7000/v1/activity/createform'),
+          Uri.parse('https://touchtender-web.onrender.com/v1/activity/createform'),
           headers: <String, String>{
             'Content-Type': 'application/json; charset=UTF-8',
           },

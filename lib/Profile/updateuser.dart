@@ -20,7 +20,6 @@ class _UserProfileUpdatePageState extends State<UserProfileUpdatePage> {
   TextEditingController _fullNameController = TextEditingController();
   TextEditingController _emailController = TextEditingController();
   TextEditingController _passwordController = TextEditingController();
-  String _gender = 'Male';
   File? _userImage;
   String _imageUrl = 'images/home_images/male_avatar.jpg';
   final storage = FlutterSecureStorage(); // Secure storage instance
@@ -50,7 +49,6 @@ class _UserProfileUpdatePageState extends State<UserProfileUpdatePage> {
     });
   }
 
-
   Future<void> _getUserData() async {
     String? token = await storage.read(key: 'auth_token');
     String? userId = await storage.read(key: 'user_id');
@@ -61,7 +59,7 @@ class _UserProfileUpdatePageState extends State<UserProfileUpdatePage> {
     }
 
     _userId = userId;
-    String url = 'http://localhost:7000/v1/auth/user/$userId';
+    String url = 'https://touchtender-web.onrender.com/v1/auth/user/$userId';
     try {
       http.Response response = await http.get(
         Uri.parse(url),
@@ -74,8 +72,7 @@ class _UserProfileUpdatePageState extends State<UserProfileUpdatePage> {
           _fullNameController.text = userData['fullName'];
           _emailController.text = userData['email'];
           _passwordController.text = userData['password'];
-          _gender = userData['gender'];
-          _imageUrl = userData['image_url'];
+          _imageUrl = 'https://touchtender-web.onrender.com${userData['image_url']}'; // Prepend localhost
         });
       } else {
         _showErrorDialog('Failed to fetch user data. Status Code: ${response.statusCode}');
@@ -95,7 +92,7 @@ class _UserProfileUpdatePageState extends State<UserProfileUpdatePage> {
 
       try {
         http.Response response = await http.put(
-          Uri.parse('http://localhost:7000/v1/auth/user/$_userId'),
+          Uri.parse('https://touchtender-web.onrender.com/v1/auth/user/$_userId'),
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer $token'
@@ -104,7 +101,6 @@ class _UserProfileUpdatePageState extends State<UserProfileUpdatePage> {
             'fullName': _fullNameController.text,
             'email': _emailController.text,
             'password': _passwordController.text,
-            'gender': _gender,
             'image_url': _imageUrl  // Assuming the server handles image URLs as part of user data
           }),
         );
@@ -144,7 +140,7 @@ class _UserProfileUpdatePageState extends State<UserProfileUpdatePage> {
           TextButton(
             child: Text('Okay'),
             onPressed: () {
-              Navigator.of(ctx). pop();
+              Navigator.of(ctx).pop();
             },
           ),
         ],
@@ -211,65 +207,67 @@ class _UserProfileUpdatePageState extends State<UserProfileUpdatePage> {
                     backgroundColor: Colors.grey.shade400,
                     backgroundImage: _userImage != null
                         ? FileImage(_userImage!) as ImageProvider
+                        : _imageUrl.startsWith('http')
+                        ? NetworkImage(_imageUrl)
                         : AssetImage(_imageUrl) as ImageProvider,
                   ),
                 ),
                 const SizedBox(height: 20),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: defaultPadding),
-                  child:TextFormField(
-                  controller: _fullNameController,
-                  keyboardType: TextInputType.name,
-                  textInputAction: TextInputAction.next,
-                  cursorColor: kPrimaryColor,
-                  validator: (value) => value!.isEmpty ? 'Please enter your full name' : null,
-                  decoration: InputDecoration(
-                    hintText: "Full name",
-                    prefixIcon: Padding(
-                      padding: EdgeInsets.all(defaultPadding),
-                      child: Icon(Icons.badge),
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.green, width: 1.0),
-                      borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.purple, width: 2.0),
-                      borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                  child: TextFormField(
+                    controller: _fullNameController,
+                    keyboardType: TextInputType.name,
+                    textInputAction: TextInputAction.next,
+                    cursorColor: kPrimaryColor,
+                    validator: (value) => value!.isEmpty ? 'Please enter your full name' : null,
+                    decoration: InputDecoration(
+                      hintText: "Full name",
+                      prefixIcon: Padding(
+                        padding: EdgeInsets.all(defaultPadding),
+                        child: Icon(Icons.badge),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.green, width: 1.0),
+                        borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.purple, width: 2.0),
+                        borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                      ),
                     ),
                   ),
-                ),
                 ),
                 SizedBox(height: defaultPadding / 2),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: defaultPadding),
                   child: TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                  cursorColor: kPrimaryColor,
-                  validator: (value) => value!.isEmpty || !value.contains('@') ? 'Enter a valid email' : null,
-                  decoration: InputDecoration(
-                    hintText: "Your email",
-                    prefixIcon: Padding(
-                      padding: EdgeInsets.all(defaultPadding),
-                      child: Icon(Icons.email),
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    cursorColor: kPrimaryColor,
+                    validator: (value) => value!.isEmpty || !value.contains('@') ? 'Enter a valid email' : null,
+                    decoration: InputDecoration(
+                      hintText: "Your email",
+                      prefixIcon: Padding(
+                        padding: EdgeInsets.all(defaultPadding),
+                        child: Icon(Icons.email),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.green, width: 1.0),
+                        borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.purple, width: 2.0),
+                        borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                      ),
                     ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.green, width: 1.0),
-                      borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.purple, width: 2.0),
-                      borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                    ),
-                  ),
                   ),
                 ),
                 SizedBox(height: defaultPadding / 2),
@@ -308,41 +306,6 @@ class _UserProfileUpdatePageState extends State<UserProfileUpdatePage> {
                         borderRadius: BorderRadius.all(Radius.circular(10.0)),
                       ),
                     ),
-                  ),
-                ),
-                SizedBox(height: defaultPadding / 2),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: defaultPadding),
-                  child: DropdownButtonFormField(
-                    value: _gender,
-                    items: ['Male', 'Female']
-                        .map((label) => DropdownMenuItem(
-                      child: Text(label),
-                      value: label,
-                    ))
-                        .toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _gender = value.toString();
-                      });
-                    },
-                    decoration: InputDecoration(
-                        hintText: "Select your gender",
-                        prefixIcon: const Padding(
-                          padding: EdgeInsets.all(defaultPadding),
-                          child: Icon(Icons.transgender),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.green, width: 1.0),
-                          borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.purple, width: 2.0),
-                          borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                        )),
                   ),
                 ),
                 SizedBox(height: defaultPadding / 2),

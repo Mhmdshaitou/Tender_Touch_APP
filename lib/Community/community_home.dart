@@ -38,13 +38,13 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
         ),
       );
     } else {
-      fetchComments();
+      await fetchComments();
     }
   }
 
   Future<void> fetchComments() async {
     final response = await http.get(
-      Uri.parse('http://localhost:7000/v1/community/comments'),
+      Uri.parse('https://touchtender-web.onrender.com/v1/community/comments'),
     );
 
     if (response.statusCode == 200) {
@@ -52,16 +52,16 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
       setState(() {
         comments = data['comments'];
       });
-      _fetchTotalLikes(comments);
+      await _fetchTotalLikes(comments);
     } else {
-      print('Failed to fetch comments');
+      print('Failed to fetch comments: ${response.body}');
     }
   }
 
   Future<void> _fetchTotalLikes(List<dynamic> comments) async {
     for (var comment in comments) {
       final response = await http.get(
-        Uri.parse('http://localhost:7000/v1/community/totallikes/${comment['CommentID']}'),
+        Uri.parse('https://touchtender-web.onrender.com/v1/community/totallikes/${comment['CommentID']}'),
       );
 
       if (response.statusCode == 200) {
@@ -70,7 +70,7 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
           _totalLikes[comment['CommentID']] = totalLikes;
         });
       } else {
-        throw Exception('Failed to load total likes');
+        print('Failed to load total likes for comment ${comment['CommentID']}: ${response.body}');
       }
     }
   }
@@ -82,7 +82,8 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context)
+  {
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -164,6 +165,8 @@ class CommentsListWidget extends StatelessWidget {
           content: comment['Content'],
           createdAt: comment['CreatedAt'],
           category: comment['category'],
+          fullName: comment['fullName'],
+          imageUrl: comment['image_url'],
           totalLikes: totalLikes[comment['CommentID']] ?? 0,
         );
       },
@@ -177,6 +180,8 @@ class CommentCard extends StatefulWidget {
   final String content;
   final String createdAt;
   final String category;
+  final String fullName;
+  final String? imageUrl;
   final int totalLikes;
 
   CommentCard({
@@ -185,6 +190,8 @@ class CommentCard extends StatefulWidget {
     required this.content,
     required this.createdAt,
     required this.category,
+    required this.fullName,
+    required this.imageUrl,
     required this.totalLikes,
   });
 
@@ -206,13 +213,12 @@ class _CommentCardState extends State<CommentCard> {
     super.initState();
     likeCount = widget.totalLikes;
     _fetchReplies();
-    _checkIfLiked();
   }
 
   Future<void> _fetchReplies() async {
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:7000/v1/community/comment/${widget.commentId}/replies'),
+        Uri.parse('https://touchtender-web.onrender.com/v1/community/comment/${widget.commentId}/replies'),
       );
 
       if (response.statusCode == 200) {
@@ -231,22 +237,7 @@ class _CommentCardState extends State<CommentCard> {
           errorMessage = e.toString();
         });
       }
-    }
-  }
-
-  Future<void> _checkIfLiked() async {
-    String? userId = await storage.read(key: 'user_id');
-    if (userId != null) {
-      final response = await http.get(
-        Uri.parse('http://localhost:7000/v1/community/isliked/${widget.commentId}/$userId'),
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          isLiked = data['isLiked'];
-        });
-      }
+      print('Error fetching replies: $e');
     }
   }
 
@@ -257,41 +248,33 @@ class _CommentCardState extends State<CommentCard> {
       return;
     }
 
-    setState(() {
-      isLiked = !isLiked;
-      likeCount += isLiked ? 1 : -1;
-    });
-
     String url = isLiked
-        ? 'http://localhost:7000/v1/community/addlike/${widget.commentId}'
-        : 'http://localhost:7000/v1/community/unlike/${widget.commentId}';
+        ? 'https://touchtender-web.onrender.com/v1/community/unlike/${widget.commentId}'
+        : 'https://touchtender-web.onrender.com/v1/community/addlike/${widget.commentId}';
 
     try {
-      final response = isLiked
-          ? await http.post(
+      final response = await (isLiked
+          ? http.delete(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'userID': userId}),
       )
-          : await http.delete(
+          : http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'userID': userId}),
-      );
+      ));
 
-      if (response.statusCode != 200 && response.statusCode != 201) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         setState(() {
           isLiked = !isLiked;
           likeCount += isLiked ? 1 : -1;
         });
+      } else {
         print('Failed to toggle like: ${response.statusCode}');
         print('Error: ${response.body}');
       }
     } catch (e) {
-      setState(() {
-        isLiked = !isLiked;
-        likeCount += isLiked ? 1 : -1;
-      });
       print('Error sending request: $e');
     }
   }
@@ -333,18 +316,46 @@ class _CommentCardState extends State<CommentCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              widget.category,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18.0,
-                color: Colors.black,
-              ),
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: Colors.blue[900],
+                  child: Text(
+                    widget.fullName[0].toUpperCase(),
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.fullName,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18.0,
+                        color: Colors.black,
+                      ),
+                    ),
+                    Text(
+                      timeSinceCreated,
+                      style: TextStyle(
+                        color: Colors.blue[900],
+                        fontSize: 10.0,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
             SizedBox(height: 8.0),
             Text(
-              timeSinceCreated,
-              style: TextStyle(color: Colors.blue[900]),
+              widget.category,
+              style: TextStyle(
+                fontSize: 16.0,
+                color: Colors.black,
+              ),
             ),
             SizedBox(height: 8.0),
             Text(
@@ -352,12 +363,9 @@ class _CommentCardState extends State<CommentCard> {
               style: TextStyle(color: Colors.black),
             ),
             SizedBox(height: 16.0),
-            if (isLoadingReplies)
-              CircularProgressIndicator(),
-            if (errorMessage != null)
-              Text(errorMessage!, style: TextStyle(color: Colors.red)),
-            if (!isLoadingReplies && _replies.isNotEmpty)
-              _buildReplies(),
+            if (isLoadingReplies) CircularProgressIndicator(),
+            if (errorMessage != null) Text(errorMessage!, style: TextStyle(color: Colors.red)),
+            if (!isLoadingReplies && _replies.isNotEmpty) _buildReplies(),
             SizedBox(height: 16.0),
             _interactionButtons(),
           ],
@@ -489,7 +497,7 @@ class _ReplyDialogState extends State<ReplyDialog> {
     try {
       Navigator.of(context).pop();
       final response = await http.post(
-        Uri.parse('http://localhost:7000/v1/community/addreply/${widget.commentId}'),
+        Uri.parse('https://touchtender-web.onrender.com/v1/community/addreply/${widget.commentId}'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(requestBody),
       );
@@ -615,6 +623,8 @@ class _ForumsTabState extends State<ForumsTab> {
                 content: comment['Content'],
                 createdAt: comment['CreatedAt'],
                 category: comment['category'],
+                fullName: comment['fullName'],
+                imageUrl: comment['image_url'],
                 totalLikes: 0,
               );
             },

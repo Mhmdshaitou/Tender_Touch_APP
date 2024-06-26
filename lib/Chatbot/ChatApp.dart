@@ -69,7 +69,7 @@ class _ChatScreenState extends State<ChatScreen> {
       try {
         // Send POST request to the server
         final response = await http.post(
-          Uri.parse('http://localhost:7000/v1/community/chat'),
+          Uri.parse('https://touchtender-web.onrender.com/v1/community/chat'),
           headers: {'Content-Type': 'application/json'},
           body: json.encode({'userInput': text}),
         );

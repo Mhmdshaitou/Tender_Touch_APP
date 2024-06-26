@@ -25,8 +25,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Map<int, List<dynamic>> _replies = {};
   String _fullName = 'Loading...';
   String _email = 'Loading...';
-  String _profileImage = 'http://localhost:7000/images/home_images/male_avatar.jpg'; // Default URL
-  final String imageUrlBase = 'http://localhost:7000'; // Base URL for images
+  String _profileImage = 'https://touchtender-web.onrender.com/images/home_images/male_avatar.jpg'; // Default URL
+  final String imageUrlBase = 'https://touchtender-web.onrender.com'; // Base URL for images
   StreamController<int> _likesStreamController = StreamController<int>();
 
   @override
@@ -66,7 +66,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     }
 
     final response = await http.get(
-      Uri.parse('http://localhost:7000/v1/community/comments/user/$userId'),
+      Uri.parse('https://touchtender-web.onrender.com/v1/community/comments/user/$userId'),
     );
 
     if (response.statusCode == 200) {
@@ -83,7 +83,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Future<void> _fetchCommentLikes(List<Comment> comments) async {
     for (var comment in comments) {
       final response = await http.get(
-        Uri.parse('http://localhost:7000/v1/community/totallikes/${comment.commentId}'),
+        Uri.parse('https://touchtender-web.onrender.com/v1/community/totallikes/${comment.commentId}'),
       );
 
       if (response.statusCode == 200) {
@@ -100,7 +100,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Future<void> _fetchAllReplies(List<Comment> comments) async {
     for (var comment in comments) {
       final response = await http.get(
-        Uri.parse('http://localhost:7000/v1/community/comment/${comment.commentId}/replies'),
+        Uri.parse('https://touchtender-web.onrender.com/v1/community/comment/${comment.commentId}/replies'),
       );
 
       if (response.statusCode == 200) {
@@ -138,7 +138,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Future<void> _loadUserProfile() async {
     String? userId = await storage.read(key: 'user_id');
     if (userId != null) {
-      final response = await http.get(Uri.parse('http://localhost:7000/v1/auth/user/$userId'));
+      final response = await http.get(Uri.parse('https://touchtender-web.onrender.com/v1/auth/user/$userId'));
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
         setState(() {
@@ -157,7 +157,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
   Future<void> _fetchTotalUserLikes(String userId) async {
     final response = await http.get(
-      Uri.parse('http://localhost:7000/v1/community/totaluserlikes/$userId'),
+      Uri.parse('https://touchtender-web.onrender.com/v1/community/totaluserlikes/$userId'),
     );
 
     if (response.statusCode == 200) {
@@ -206,7 +206,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     onBackgroundImageError: (exception, stackTrace) {
                       print('Error loading profile image: $exception');
                       setState(() {
-                        _profileImage = 'http://localhost:7000/images/home_images/male_avatar.jpg'; // Fallback URL
+                        _profileImage = 'https://touchtender-web.onrender.com/images/home_images/male_avatar.jpg'; // Fallback URL
                       });
                     },
                   ),
@@ -413,7 +413,7 @@ class _ThreadCardState extends State<ThreadCard> {
 
   Future<void> _deleteComment(int commentId) async {
     final response = await http.delete(
-      Uri.parse('http://localhost:7000/v1/community/deletecomment/$commentId'),
+      Uri.parse('https://touchtender-web.onrender.com/v1/community/deletecomment/$commentId'),
     );
 
     if (response.statusCode == 200) {
